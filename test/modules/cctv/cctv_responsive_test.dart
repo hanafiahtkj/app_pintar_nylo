@@ -131,7 +131,11 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
 
         expect(tester.takeException(), isNull);
-        expect(find.text('Daftar Kamera'), findsOneWidget);
+        if (entry.value.width >= 1024) {
+          expect(find.text('Daftar Kamera'), findsOneWidget);
+        } else {
+          expect(find.byType(DraggableScrollableSheet), findsOneWidget);
+        }
         expect(find.text('Grid'), findsNothing);
       },
     );

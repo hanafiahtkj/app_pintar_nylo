@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '/modules/cctv/controllers/cctv_controller.dart';
 import '/modules/cctv/models/cctv_camera_group.dart';
+import '/modules/cctv/services/cctv_local_service.dart';
 import '/modules/cctv/widgets/cctv_theme_tokens.dart';
 
 class CctvMapView extends StatefulWidget {
@@ -12,6 +13,7 @@ class CctvMapView extends StatefulWidget {
   final bool isDesktopSplitPane;
   final bool isFullBleed;
   final VoidCallback? onToggleFullscreen;
+  final VoidCallback? onRefreshStatus;
 
   const CctvMapView({
     super.key,
@@ -21,6 +23,7 @@ class CctvMapView extends StatefulWidget {
     this.isDesktopSplitPane = false,
     this.isFullBleed = false,
     this.onToggleFullscreen,
+    this.onRefreshStatus,
   });
 
   @override
@@ -140,8 +143,8 @@ class _CctvMapViewState extends State<CctvMapView>
     final listGroups = ctrl.allGroups;
 
     final desktopMapHeight = 520.0;
-    final controlsBottomOffset = widget.isDesktopSplitPane ? 24.0 : 72.0;
-    final osmBottomOffset = widget.isDesktopSplitPane ? 8.0 : 66.0;
+    final controlsBottomOffset = widget.isDesktopSplitPane ? 24.0 : 108.0;
+    final osmBottomOffset = widget.isDesktopSplitPane ? 8.0 : 102.0;
 
     final mapCanvas = LayoutBuilder(
       builder: (context, constraints) {
@@ -318,16 +321,25 @@ class _CctvMapViewState extends State<CctvMapView>
       );
     }
 
-    // Mobile / Tablet portrait: full-height map + Google Maps-style draggable sheet
+    // Mobile / Tablet portrait: full-height map + unified Google Maps-style sheet
     return LayoutBuilder(
       builder: (context, constraints) {
         final availHeight =
             constraints.maxHeight.isFinite && constraints.maxHeight > 0
                 ? constraints.maxHeight
                 : 380.0;
-        final collapsedSize = (58.0 / availHeight).clamp(0.14, 0.38);
+        final collapsedSize = (94.0 / availHeight).clamp(0.18, 0.42);
         const maxSize = 0.94;
-        final midSize = collapsedSize < 0.48 ? 0.56 : null;
+        final midSize = collapsedSize < 0.50 ? 0.58 : null;
+
+        final activeCam = ctrl.activeCamera;
+        final activeDistance = ctrl.distanceLabelFor(activeCam);
+        final activeStatus = ctrl.statusOf(activeCam?.id);
+        final activeDotColor = activeStatus == true
+            ? tokens.online
+            : activeStatus == false
+                ? tokens.offline
+                : tokens.textMuted;
 
         void toggleSheet() {
           if (!_sheetController.isAttached) return;
@@ -377,6 +389,7 @@ class _CctvMapViewState extends State<CctvMapView>
                   child: CustomScrollView(
                     controller: scrollController,
                     slivers: [
+                      // Collapsed-visible Active Camera Header (tap/drag to open list)
                       SliverToBoxAdapter(
                         child: GestureDetector(
                           onTap: toggleSheet,
@@ -398,44 +411,131 @@ class _CctvMapViewState extends State<CctvMapView>
                                   16,
                                   10,
                                   14,
-                                  10,
+                                  12,
                                 ),
                                 child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
-                                    Icon(
-                                      Icons.videocam_outlined,
-                                      size: 16,
-                                      color: tokens.primary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Daftar Kamera',
-                                      style: tokens.label.copyWith(
-                                        color: tokens.textPrimary,
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                width: 8,
+                                                height: 8,
+                                                decoration: BoxDecoration(
+                                                  color: activeDotColor,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 7),
+                                              Expanded(
+                                                child: Text(
+                                                  activeCam?.displayName ??
+                                                      'Pemantauan CCTV',
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: tokens.title.copyWith(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              if (activeDistance != null) ...[
+                                                Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: tokens.primarySoft,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      5,
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.near_me_rounded,
+                                                        size: 10.5,
+                                                        color: tokens.primary,
+                                                      ),
+                                                      const SizedBox(width: 3),
+                                                      Text(
+                                                        activeDistance,
+                                                        style: TextStyle(
+                                                          fontSize: 11,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: tokens.primary,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                              ],
+                                              Expanded(
+                                                child: Text(
+                                                  (activeCam?.address ?? '')
+                                                          .isNotEmpty
+                                                      ? activeCam!.address
+                                                      : (activeCam
+                                                              ?.displayCategory ??
+                                                          'Tarik ke atas untuk daftar kamera'),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: tokens.caption,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
+                                    const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 7,
-                                        vertical: 2,
+                                        horizontal: 8,
+                                        vertical: 5,
                                       ),
                                       decoration: BoxDecoration(
                                         color: tokens.surfaceSubtle,
-                                        borderRadius: BorderRadius.circular(8),
+                                        borderRadius: BorderRadius.circular(10),
                                       ),
-                                      child: Text(
-                                        '${listGroups.length}',
-                                        style: tokens.caption.copyWith(
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '${listGroups.length}',
+                                            style: tokens.caption.copyWith(
+                                              fontWeight: FontWeight.w700,
+                                              color: tokens.textPrimary,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 2),
+                                          Icon(
+                                            Icons.keyboard_arrow_up_rounded,
+                                            size: 18,
+                                            color: tokens.textMuted,
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                    const Spacer(),
-                                    Icon(
-                                      Icons.keyboard_arrow_up_rounded,
-                                      size: 20,
-                                      color: tokens.textMuted,
                                     ),
                                   ],
                                 ),
@@ -445,6 +545,141 @@ class _CctvMapViewState extends State<CctvMapView>
                           ),
                         ),
                       ),
+
+                      // Expanded Status Summary & Quick Actions
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 10, 14, 10),
+                          child: Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    'Total ${ctrl.cameras.length}',
+                                    style: tokens.caption.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: tokens.textPrimary,
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 6.5,
+                                        height: 6.5,
+                                        decoration: BoxDecoration(
+                                          color: tokens.online,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${ctrl.onlineCount} Online',
+                                        style: tokens.caption.copyWith(
+                                          color: tokens.onlineText,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 6.5,
+                                        height: 6.5,
+                                        decoration: BoxDecoration(
+                                          color: tokens.offline,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${ctrl.offlineCount} Offline',
+                                        style: tokens.caption.copyWith(
+                                          color: tokens.offlineText,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (activeCam != null &&
+                                      activeCam.hasValidCoords)
+                                    IconButton(
+                                      onPressed: () =>
+                                          CctvLocalService.openInExternalMaps(
+                                        activeCam,
+                                      ),
+                                      icon: Icon(
+                                        Icons.directions_outlined,
+                                        size: 18,
+                                        color: tokens.primary,
+                                      ),
+                                      tooltip: 'Buka di Google/Apple Maps',
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                  if (widget.onRefreshStatus != null)
+                                    TextButton.icon(
+                                      onPressed: ctrl.isCheckingAlive
+                                          ? null
+                                          : widget.onRefreshStatus,
+                                      icon: ctrl.isCheckingAlive
+                                          ? SizedBox(
+                                              width: 12,
+                                              height: 12,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: tokens.primary,
+                                              ),
+                                            )
+                                          : Icon(
+                                              Icons.sync_rounded,
+                                              size: 15,
+                                              color: tokens.primary,
+                                            ),
+                                      label: Text(
+                                        ctrl.isCheckingAlive
+                                            ? 'Cek...'
+                                            : 'Cek Status',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: tokens.primary,
+                                        ),
+                                      ),
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        minimumSize: Size.zero,
+                                        tapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      SliverToBoxAdapter(
+                        child: Divider(height: 1, color: tokens.divider),
+                      ),
+
                       if (listGroups.isEmpty)
                         SliverToBoxAdapter(
                           child: Padding(
@@ -479,7 +714,7 @@ class _CctvMapViewState extends State<CctvMapView>
                         )
                       else
                         SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 20),
+                          padding: const EdgeInsets.fromLTRB(10, 6, 10, 24),
                           sliver: SliverList.separated(
                             itemCount: listGroups.length,
                             separatorBuilder: (_, __) =>

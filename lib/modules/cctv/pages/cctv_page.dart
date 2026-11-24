@@ -195,9 +195,43 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
                   isDense: true,
                 ),
               )
-            : Text(
-                title,
-                style: tokens.heading,
+            : ListenableBuilder(
+                listenable: _controller,
+                builder: (context, _) {
+                  final activeCam = _controller.activeCamera;
+                  if (activeCam == null) {
+                    return Text(title, style: tokens.heading);
+                  }
+                  final distance = _controller.distanceLabelFor(activeCam);
+                  final subtitleParts = <String>[
+                    if (distance != null) distance,
+                    if (activeCam.address.isNotEmpty)
+                      activeCam.address
+                    else
+                      activeCam.displayCategory,
+                  ];
+                  final subtitle = subtitleParts.join(' · ');
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        activeCam.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: tokens.heading.copyWith(fontSize: 15.5),
+                      ),
+                      if (subtitle.isNotEmpty)
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: tokens.caption.copyWith(fontSize: 11.5),
+                        ),
+                    ],
+                  );
+                },
               ),
         actions: [
           ListenableBuilder(
@@ -349,37 +383,57 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
   }
 
   Widget _buildMobileLayout(CctvTokens tokens, {required bool isFullBleed}) {
+    final ctrl = _controller;
+
     return Column(
       children: [
-        // Sticky 16:9 Video Player pinned at top
-        if (_controller.activeCamera != null)
-          CctvPlayerStage(
-            camera: _controller.activeCamera,
-            isAlive: _controller.statusOf(_controller.activeCamera?.id),
-            onStreamReady: _controller.markCameraLive,
-            onStreamError: _controller.handleStreamError,
-            isDesktopStage: false,
-            isActive: !_isFullscreenMapOpen,
+        // Framed Rounded Video Player Card (Opsi 2)
+        if (ctrl.activeCamera != null)
+          Container(
+            width: double.infinity,
+            color: tokens.surface,
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A)
+                        .withValues(alpha: tokens.isDark ? 0.35 : 0.14),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: CctvPlayerStage(
+                  camera: ctrl.activeCamera,
+                  isAlive: ctrl.statusOf(ctrl.activeCamera?.id),
+                  onStreamReady: ctrl.markCameraLive,
+                  onStreamError: ctrl.handleStreamError,
+                  isDesktopStage: false,
+                  isActive: !_isFullscreenMapOpen,
+                ),
+              ),
+            ),
           ),
 
-        // Compact Telemetry Bar directly beneath video
-        CctvTelemetryCard(
-          controller: _controller,
-          onRefreshStatus: () => _controller.checkAlive(forceRefresh: true),
-          onOpenMap: _openMapForActiveCamera,
-          isDesktopPanel: false,
-          isFullBleed: isFullBleed,
-        ),
-
-        // Full-height Map + Google Maps-style Draggable Camera List Sheet
+        // Full-height Map + Compact Google Maps-style Draggable Sheet
         Expanded(
-          child: CctvMapView(
-            controller: _controller,
-            mapController: _mapController,
-            isDesktopSplitPane: false,
-            isFullBleed: isFullBleed,
-            onGroupTap: _handleGroupTap,
-            onToggleFullscreen: _openFullscreenMap,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: tokens.border)),
+            ),
+            child: CctvMapView(
+              controller: ctrl,
+              mapController: _mapController,
+              isDesktopSplitPane: false,
+              isFullBleed: isFullBleed,
+              onGroupTap: _handleGroupTap,
+              onToggleFullscreen: _openFullscreenMap,
+              onRefreshStatus: () => ctrl.checkAlive(forceRefresh: true),
+            ),
           ),
         ),
       ],
