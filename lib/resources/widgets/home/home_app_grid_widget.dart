@@ -182,17 +182,17 @@ class _HomeAppGridWidgetState extends NyState<HomeAppGridWidget> {
               decoration: BoxDecoration(
                 color: isDark ? theme.cardColor : Colors.white,
                 borderRadius: BorderRadius.circular(18),
-                border: isDark
-                    ? Border.all(
-                        color: theme.dividerColor.withValues(alpha: 0.16),
-                      )
-                    : null,
+                border: Border.all(
+                  color: isDark
+                      ? theme.dividerColor.withValues(alpha: 0.16)
+                      : const Color(0xFFEEF2F7),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: const Color(0xFF0F172A)
-                        .withValues(alpha: isDark ? 0.22 : 0.055),
-                    blurRadius: 12,
-                    offset: const Offset(0, 3),
+                        .withValues(alpha: isDark ? 0.22 : 0.06),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
@@ -256,17 +256,17 @@ class _HomeAppGridWidgetState extends NyState<HomeAppGridWidget> {
               decoration: BoxDecoration(
                 color: isDark ? theme.cardColor : Colors.white,
                 borderRadius: BorderRadius.circular(18),
-                border: isDark
-                    ? Border.all(
-                        color: theme.dividerColor.withValues(alpha: 0.16),
-                      )
-                    : null,
+                border: Border.all(
+                  color: isDark
+                      ? theme.dividerColor.withValues(alpha: 0.16)
+                      : const Color(0xFFEEF2F7),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: const Color(0xFF0F172A)
-                        .withValues(alpha: isDark ? 0.22 : 0.055),
-                    blurRadius: 12,
-                    offset: const Offset(0, 3),
+                        .withValues(alpha: isDark ? 0.22 : 0.06),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),

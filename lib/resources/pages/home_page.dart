@@ -61,6 +61,7 @@ class _HomePageState extends NyPage<HomePage> {
   Polling? _polling;
   List<BannerItem> _banners = [];
   List<UrgentNotification> _urgentNotifications = [];
+  bool _showStatusBarBg = false;
 
   @override
   bool get stateManaged => true;
@@ -745,12 +746,20 @@ class _HomePageState extends NyPage<HomePage> {
       decoration: BoxDecoration(
         color: navBg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(
+          top: BorderSide(
+            color: isDark
+                ? theme.dividerColor.withValues(alpha: 0.16)
+                : const Color(0xFFEEF2F7),
+            width: 1,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.07),
-            blurRadius: 14,
-            spreadRadius: 1,
-            offset: const Offset(0, -3),
+            color: const Color(0xFF0F172A)
+                .withValues(alpha: isDark ? 0.28 : 0.07),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
@@ -1096,8 +1105,24 @@ class _HomePageState extends NyPage<HomePage> {
   }
 
   Widget _buildBody({required bool isWide}) {
-    return CustomScrollView(
-      slivers: [
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final topInset = MediaQuery.paddingOf(context).top;
+
+    return Stack(
+      children: [
+        NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            if (notification.metrics.axis == Axis.vertical) {
+              final shouldShow = notification.metrics.pixels > 120;
+              if (shouldShow != _showStatusBarBg) {
+                setState(() => _showStatusBarBg = shouldShow);
+              }
+            }
+            return false;
+          },
+          child: CustomScrollView(
+            slivers: [
         SliverToBoxAdapter(
           child: Stack(
             children: [
@@ -1200,6 +1225,35 @@ class _HomePageState extends NyPage<HomePage> {
           ),
         ),
         SliverToBoxAdapter(child: SizedBox(height: isWide ? 36 : 56)),
+            ],
+          ),
+        ),
+        if (topInset > 0)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: topInset,
+            child: IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: _showStatusBarBg ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 180),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: theme.scaffoldBackgroundColor.withValues(alpha: 0.94),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isDark
+                            ? theme.dividerColor.withValues(alpha: 0.14)
+                            : const Color(0xFFEEF2F7),
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1882,7 +1936,7 @@ class _HomePageState extends NyPage<HomePage> {
         : hsl.withLightness(hsl.lightness.clamp(0.28, 0.42)).toColor();
 
     final Color surfaceColor = Color.alphaBlend(
-      accentColor.withValues(alpha: isDark ? 0.14 : 0.055),
+      accentColor.withValues(alpha: isDark ? 0.14 : 0.075),
       isDark ? theme.cardColor : Colors.white,
     );
     final Color mutedColor = isDark
@@ -1896,16 +1950,16 @@ class _HomePageState extends NyPage<HomePage> {
       decoration: BoxDecoration(
         color: surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: isDark
-            ? Border.all(color: accentColor.withValues(alpha: 0.24))
-            : null,
+        border: Border.all(
+          color: accentColor.withValues(alpha: isDark ? 0.24 : 0.18),
+        ),
         boxShadow: [
           BoxShadow(
             color: const Color(
               0xFF0F172A,
-            ).withValues(alpha: isDark ? 0.2 : 0.035),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
+            ).withValues(alpha: isDark ? 0.2 : 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),

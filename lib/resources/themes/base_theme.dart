@@ -59,19 +59,23 @@ ThemeData buildAppTheme(ColorStyles color, {required Brightness brightness}) {
   final ColorScheme colorScheme = isDark ? _darkColorScheme : _lightColorScheme;
   final Color focusColor = isDark ? _darkFocusColor : _lightFocusColor;
 
+  final Color canvasBg = isDark ? colorScheme.surface : const Color(0xFFFBFCFE);
+
   return ThemeData(
     colorScheme: colorScheme,
     textTheme: _appTextTheme,
     primaryColor: const Color(0xFF030303),
     appBarTheme: AppBarTheme(
-      backgroundColor: colorScheme.surface,
+      backgroundColor: canvasBg,
+      surfaceTintColor: Colors.transparent,
+      scrolledUnderElevation: 0,
       elevation: 0,
       iconTheme: IconThemeData(color: colorScheme.primary),
     ),
     iconTheme: IconThemeData(color: colorScheme.onPrimary),
-    canvasColor: colorScheme.surface,
+    canvasColor: canvasBg,
     cardColor: isDark ? const Color(0xFF282136) : Colors.white,
-    scaffoldBackgroundColor: colorScheme.surface,
+    scaffoldBackgroundColor: canvasBg,
     highlightColor: Colors.transparent,
     focusColor: focusColor,
     snackBarTheme: SnackBarThemeData(

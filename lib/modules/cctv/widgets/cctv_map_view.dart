@@ -209,36 +209,19 @@ class _CctvMapViewState extends State<CctvMapView>
                 ],
               ),
 
-              // Top-right soft floating pills
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _MapActionPill(
-                      icon: Icons.format_list_bulleted_rounded,
-                      label: isCompactMap
-                          ? '${listGroups.length}'
-                          : 'Daftar (${listGroups.length})',
-                      active: _showListPanel,
-                      tokens: tokens,
-                      onTap: () =>
-                          setState(() => _showListPanel = !_showListPanel),
-                    ),
-                    if (widget.onToggleFullscreen != null) ...[
-                      const SizedBox(width: 8),
-                      _MapActionPill(
-                        icon: Icons.fullscreen_rounded,
-                        label: isCompactMap ? '' : 'Layar Penuh',
-                        active: false,
-                        tokens: tokens,
-                        onTap: widget.onToggleFullscreen!,
-                      ),
-                    ],
-                  ],
+              // Top-right soft floating pill (Fullscreen)
+              if (widget.onToggleFullscreen != null)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: _MapActionPill(
+                    icon: Icons.fullscreen_rounded,
+                    label: isCompactMap ? '' : 'Layar Penuh',
+                    active: false,
+                    tokens: tokens,
+                    onTap: widget.onToggleFullscreen!,
+                  ),
                 ),
-              ),
 
               // Bottom-right thumb-friendly Zoom & Recenter controls
               Positioned(

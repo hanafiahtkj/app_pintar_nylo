@@ -165,16 +165,19 @@ class _HomePostListWidgetState extends NyState<HomePostListWidget> {
         decoration: BoxDecoration(
           color: theme.cardColor,
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isDark
+                ? theme.dividerColor.withValues(alpha: 0.16)
+                : const Color(0xFFEEF2F7),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
+              color: const Color(0xFF0F172A)
+                  .withValues(alpha: isDark ? 0.2 : 0.06),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
-          border: Border.all(
-            color: theme.dividerColor.withValues(alpha: isDark ? 0.2 : 0.14),
-          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

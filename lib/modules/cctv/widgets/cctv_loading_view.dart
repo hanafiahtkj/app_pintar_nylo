@@ -81,56 +81,63 @@ class _CctvLoadingViewState extends State<CctvLoadingView>
               ? const Color(0xFF1C1728)
               : const Color(0xFFEEF4FC),
         ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Concentric soft sonar waves
-            AnimatedBuilder(
-              animation: _sonarController,
-              builder: (context, _) {
-                return CustomPaint(
-                  size: const Size(220, 220),
-                  painter: _SonarRingsPainter(
-                    progress: _sonarController.value,
-                    color: tokens.primary,
-                  ),
-                );
-              },
-            ),
-
-            // Center glowing camera/location hub
-            Column(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ScaleTransition(
-                  scale: Tween<double>(begin: 0.96, end: 1.05).animate(
-                    CurvedAnimation(
-                      parent: _sonarController,
-                      curve: Curves.easeInOut,
-                    ),
-                  ),
-                  child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: tokens.primary,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: tokens.primary.withValues(alpha: 0.32),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
+                // Concentric sonar waves centered cleanly around the camera hub
+                SizedBox(
+                  width: 88,
+                  height: 88,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      AnimatedBuilder(
+                        animation: _sonarController,
+                        builder: (context, _) {
+                          return CustomPaint(
+                            size: const Size(88, 88),
+                            painter: _SonarRingsPainter(
+                              progress: _sonarController.value,
+                              color: tokens.primary,
+                            ),
+                          );
+                        },
+                      ),
+                      ScaleTransition(
+                        scale: Tween<double>(begin: 0.96, end: 1.05).animate(
+                          CurvedAnimation(
+                            parent: _sonarController,
+                            curve: Curves.easeInOut,
+                          ),
                         ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.videocam_rounded,
-                      color: tokens.primaryOnFill,
-                      size: 24,
-                    ),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: tokens.primary,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: tokens.primary.withValues(alpha: 0.28),
+                                blurRadius: 12,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            Icons.videocam_rounded,
+                            color: tokens.primaryOnFill,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 6),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: Text(
@@ -152,7 +159,7 @@ class _CctvLoadingViewState extends State<CctvLoadingView>
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -519,12 +526,14 @@ class _SonarRingsPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2 - 14);
-    final maxRadius = size.width * 0.48;
+    final center = Offset(size.width / 2, size.height / 2);
+    final minRadius = size.width * 0.25;
+    final maxRadius = size.width * 0.49;
 
     for (var i = 0; i < 3; i++) {
       final phase = (progress + i / 3) % 1.0;
-      final radius = 26 + (maxRadius - 26) * Curves.easeOut.transform(phase);
+      final radius =
+          minRadius + (maxRadius - minRadius) * Curves.easeOut.transform(phase);
       final opacity = (1.0 - phase) * 0.28;
 
       final fillPaint = Paint()
