@@ -9,6 +9,7 @@ import '/modules/cctv/models/cctv_camera_group.dart';
 import '/modules/cctv/pages/cctv_fullscreen_map_page.dart';
 import '/modules/cctv/widgets/cctv_filter_bar.dart';
 import '/modules/cctv/widgets/cctv_group_picker_sheet.dart';
+import '/modules/cctv/widgets/cctv_loading_view.dart';
 import '/modules/cctv/widgets/cctv_map_view.dart';
 import '/modules/cctv/widgets/cctv_player_stage.dart';
 import '/modules/cctv/widgets/cctv_telemetry_card.dart';
@@ -158,7 +159,7 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
         listenable: _controller,
         builder: (context, _) {
           if (_controller.isLoadingInitial && _controller.cameras.isEmpty) {
-            return _buildInitialLoading(tokens);
+            return const CctvLoadingView();
           }
 
           if (_controller.initialError != null && _controller.cameras.isEmpty) {
@@ -177,32 +178,6 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
             },
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildInitialLoading(CctvTokens tokens) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 30,
-              height: 30,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.6,
-                color: tokens.primary,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'Memuat daftar kamera CCTV...',
-              style: tokens.body.copyWith(color: tokens.textMuted),
-            ),
-          ],
-        ),
       ),
     );
   }

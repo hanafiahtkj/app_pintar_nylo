@@ -225,7 +225,7 @@ class _CctvFilterBarState extends State<CctvFilterBar> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Row 1: Soft Category Pills
+              // Row 1: Soft Category + Quick Utility Pills (Favorit, Online Saja, Terdekat)
               SizedBox(
                 height: 38,
                 child: ListView(
@@ -233,21 +233,57 @@ class _CctvFilterBarState extends State<CctvFilterBar> {
                   children: [
                     _CategoryPill(
                       label: 'Semua (${ctrl.wilayahFilteredList.length})',
-                      selected: ctrl.selectedCategory == null,
+                      selected:
+                          ctrl.selectedCategory == null && !ctrl.favoritesOnly,
                       tokens: tokens,
                       onTap: () => ctrl.selectCategory(null),
                     ),
+                    if (ctrl.favoriteCount > 0 || ctrl.favoritesOnly) ...[
+                      const SizedBox(width: 8),
+                      _QuickTogglePill(
+                        icon: Icons.star_rounded,
+                        label: 'Favorit (${ctrl.favoriteCount})',
+                        active: ctrl.favoritesOnly,
+                        activeBg: const Color(0xFFF59E0B),
+                        activeFg: Colors.white,
+                        tokens: tokens,
+                        onTap: () => ctrl.setFavoritesOnly(!ctrl.favoritesOnly),
+                      ),
+                    ],
                     const SizedBox(width: 8),
                     for (final cat in ctrl.categories) ...[
                       _CategoryPill(
                         label:
                             '${cat.displayName} (${ctrl.countForCategory(cat.uuid)})',
-                        selected: ctrl.selectedCategory == cat.uuid,
+                        selected: ctrl.selectedCategory == cat.uuid &&
+                            !ctrl.favoritesOnly,
                         tokens: tokens,
                         onTap: () => ctrl.selectCategory(cat.uuid),
                       ),
                       const SizedBox(width: 8),
                     ],
+                    _QuickTogglePill(
+                      icon: Icons.circle,
+                      iconSize: 8,
+                      label: 'Online Saja',
+                      active: ctrl.onlineOnly,
+                      activeBg: tokens.online,
+                      activeFg: Colors.white,
+                      inactiveIconColor: tokens.online,
+                      tokens: tokens,
+                      onTap: () => ctrl.setOnlineOnly(!ctrl.onlineOnly),
+                    ),
+                    const SizedBox(width: 8),
+                    _QuickTogglePill(
+                      icon: Icons.near_me_rounded,
+                      label: ctrl.isLocating ? 'Mencari...' : 'Terdekat',
+                      active: ctrl.sortByNearest,
+                      activeBg: tokens.primary,
+                      activeFg: tokens.primaryOnFill,
+                      loading: ctrl.isLocating,
+                      tokens: tokens,
+                      onTap: ctrl.toggleSortByNearest,
+                    ),
                   ],
                 ),
               ),
@@ -346,9 +382,149 @@ class _CctvFilterBarState extends State<CctvFilterBar> {
                   ],
                 ),
               ],
+
+              // Recently Watched quick-switch strip (shown only when history > 1)
+              if (ctrl.recentCameras.length > 1) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 32,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: ctrl.recentCameras.length + 1,
+                    separatorBuilder: (_, __) => const SizedBox(width: 6),
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.history_rounded,
+                                size: 14,
+                                color: tokens.textMuted,
+                              ),
+                              const SizedBox(width: 4),
+                              Text('Terakhir:', style: tokens.caption),
+                            ],
+                          ),
+                        );
+                      }
+                      final cam = ctrl.recentCameras[index - 1];
+                      final isActive = ctrl.activeCamera?.id == cam.id;
+                      return Material(
+                        color:
+                            isActive ? tokens.primarySoft : tokens.surfaceSubtle,
+                        borderRadius:
+                            BorderRadius.circular(CctvTokens.radiusPill),
+                        child: InkWell(
+                          onTap: () => ctrl.selectCamera(cam),
+                          borderRadius:
+                              BorderRadius.circular(CctvTokens.radiusPill),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 11),
+                            child: Center(
+                              child: Text(
+                                cam.displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: isActive
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                  color: isActive
+                                      ? tokens.primary
+                                      : tokens.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _QuickTogglePill extends StatelessWidget {
+  final IconData icon;
+  final double iconSize;
+  final String label;
+  final bool active;
+  final Color activeBg;
+  final Color activeFg;
+  final Color? inactiveIconColor;
+  final bool loading;
+  final CctvTokens tokens;
+  final VoidCallback onTap;
+
+  const _QuickTogglePill({
+    required this.icon,
+    this.iconSize = 14,
+    required this.label,
+    required this.active,
+    required this.activeBg,
+    required this.activeFg,
+    this.inactiveIconColor,
+    this.loading = false,
+    required this.tokens,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = active ? activeBg : tokens.surfaceSubtle;
+    final fg = active ? activeFg : tokens.textSecondary;
+
+    return Semantics(
+      button: true,
+      selected: active,
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(CctvTokens.radiusPill),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(CctvTokens.radiusPill),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 13),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (loading)
+                  SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: fg,
+                    ),
+                  )
+                else
+                  Icon(
+                    icon,
+                    size: iconSize,
+                    color: active ? fg : (inactiveIconColor ?? fg),
+                  ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: fg,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

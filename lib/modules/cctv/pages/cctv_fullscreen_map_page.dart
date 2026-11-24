@@ -4,6 +4,7 @@ import 'package:latlong2/latlong.dart';
 import '/modules/cctv/controllers/cctv_controller.dart';
 import '/modules/cctv/models/cctv_camera.dart';
 import '/modules/cctv/models/cctv_camera_group.dart';
+import '/modules/cctv/services/cctv_local_service.dart';
 import '/modules/cctv/widgets/cctv_group_picker_sheet.dart';
 import '/modules/cctv/widgets/cctv_player_stage.dart';
 import '/modules/cctv/widgets/cctv_theme_tokens.dart';
@@ -373,12 +374,18 @@ class _CctvFullscreenMapPageState extends State<CctvFullscreenMapPage>
                   : _CameraPreviewCard(
                       camera: _previewCamera!,
                       status: widget.controller.statusOf(_previewCamera!.id),
+                      isFavorite:
+                          widget.controller.isFavorite(_previewCamera!.id),
+                      distanceLabel:
+                          widget.controller.distanceLabelFor(_previewCamera!),
                       isInlinePlaying: _isInlinePlaying,
                       tokens: tokens,
                       onClose: () => setState(() {
                         _isInlinePlaying = false;
                         _previewCamera = null;
                       }),
+                      onToggleFavorite: () =>
+                          widget.controller.toggleFavorite(_previewCamera!.id),
                       onStopInline: () =>
                           setState(() => _isInlinePlaying = false),
                       onPlayInline: () => _playInline(_previewCamera!),
@@ -653,9 +660,12 @@ class _CctvFullscreenMapPageState extends State<CctvFullscreenMapPage>
 class _CameraPreviewCard extends StatelessWidget {
   final CctvCamera camera;
   final bool? status;
+  final bool isFavorite;
+  final String? distanceLabel;
   final bool isInlinePlaying;
   final CctvTokens tokens;
   final VoidCallback onClose;
+  final VoidCallback onToggleFavorite;
   final VoidCallback onStopInline;
   final VoidCallback onPlayInline;
   final VoidCallback onOpenMainPage;
@@ -664,9 +674,12 @@ class _CameraPreviewCard extends StatelessWidget {
   const _CameraPreviewCard({
     required this.camera,
     required this.status,
+    required this.isFavorite,
+    required this.distanceLabel,
     required this.isInlinePlaying,
     required this.tokens,
     required this.onClose,
+    required this.onToggleFavorite,
     required this.onStopInline,
     required this.onPlayInline,
     required this.onOpenMainPage,
@@ -759,17 +772,47 @@ class _CameraPreviewCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        camera.displayCategory,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: tokens.primary,
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              camera.displayCategory,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: tokens.primary,
+                              ),
+                            ),
+                          ),
+                          if (distanceLabel != null) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              '· $distanceLabel',
+                              style: tokens.caption.copyWith(fontSize: 11.5),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    InkWell(
+                      onTap: onToggleFavorite,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.all(5),
+                        child: Icon(
+                          isFavorite
+                              ? Icons.star_rounded
+                              : Icons.star_outline_rounded,
+                          size: 19,
+                          color: isFavorite
+                              ? const Color(0xFFF59E0B)
+                              : tokens.textMuted,
                         ),
                       ),
                     ),
+                    const SizedBox(width: 2),
                     InkWell(
                       onTap: onClose,
                       borderRadius: BorderRadius.circular(16),
@@ -855,6 +898,32 @@ class _CameraPreviewCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    if (camera.hasValidCoords) ...[
+                      Tooltip(
+                        message: 'Buka rute di Maps',
+                        child: SizedBox(
+                          width: CctvTokens.minTouchTarget,
+                          height: CctvTokens.minTouchTarget,
+                          child: Material(
+                            color: tokens.surfaceSubtle,
+                            borderRadius:
+                                BorderRadius.circular(CctvTokens.radiusMd),
+                            child: InkWell(
+                              onTap: () =>
+                                  CctvLocalService.openInExternalMaps(camera),
+                              borderRadius:
+                                  BorderRadius.circular(CctvTokens.radiusMd),
+                              child: Icon(
+                                Icons.directions_outlined,
+                                size: 19,
+                                color: tokens.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                     SizedBox(
                       height: CctvTokens.minTouchTarget,
                       child: TextButton.icon(

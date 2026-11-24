@@ -5,6 +5,7 @@ import '/modules/cctv/models/cctv_camera_group.dart';
 import '/modules/cctv/models/cctv_category.dart';
 import '/modules/cctv/models/cctv_wilayah.dart';
 import '/modules/cctv/networking/cctv_api_service.dart';
+import '/modules/cctv/services/cctv_local_service.dart';
 
 class CctvKecamatanOption {
   final CctvKecamatan kecamatan;
@@ -35,8 +36,13 @@ class CctvController extends ChangeNotifier {
   static const double defaultZoom = 13.0;
 
   CctvApiService? _apiService;
+  final CctvLocalService _localService;
 
-  CctvController({CctvApiService? apiService}) : _apiService = apiService;
+  CctvController({
+    CctvApiService? apiService,
+    CctvLocalService? localService,
+  })  : _apiService = apiService,
+        _localService = localService ?? CctvLocalService();
 
   CctvApiService get _api => _apiService ??= CctvApiService();
 
@@ -45,16 +51,26 @@ class CctvController extends ChangeNotifier {
   List<CctvKecamatan> _wilayahList = const [];
   final Map<String, bool> _aliveStatus = <String, bool>{};
 
+  final Set<String> _favoriteIds = <String>{};
+  final List<String> _recentIds = <String>[];
+
   bool _isLoadingInitial = false;
   String? _initialError;
   bool _isCheckingAlive = false;
   DateTime? _lastCheckedAt;
+
+  bool _isLocating = false;
+  double? _userLat;
+  double? _userLng;
+  bool _sortByNearest = true;
 
   CctvCamera? _activeCamera;
   String? _playingLiveCameraId;
   String? _selectedCategory;
   String? _selectedKecamatan;
   String? _selectedKelurahan;
+  bool _favoritesOnly = false;
+  bool _onlineOnly = false;
   String _searchQuery = '';
 
   bool _isAutoScanning = true;
@@ -71,17 +87,61 @@ class CctvController extends ChangeNotifier {
   List<CctvKecamatan> get wilayahList => _wilayahList;
   Map<String, bool> get aliveStatus => Map.unmodifiable(_aliveStatus);
 
+  Set<String> get favoriteIds => Set.unmodifiable(_favoriteIds);
+  List<String> get recentIds => List.unmodifiable(_recentIds);
+
   bool get isLoadingInitial => _isLoadingInitial;
   String? get initialError => _initialError;
   bool get isCheckingAlive => _isCheckingAlive;
   DateTime? get lastCheckedAt => _lastCheckedAt;
 
+  bool get isLocating => _isLocating;
+  double? get userLat => _userLat;
+  double? get userLng => _userLng;
+  bool get hasUserLocation => _userLat != null && _userLng != null;
+  bool get sortByNearest => _sortByNearest && hasUserLocation;
+
   CctvCamera? get activeCamera => _activeCamera;
   String? get selectedCategory => _selectedCategory;
   String? get selectedKecamatan => _selectedKecamatan;
   String? get selectedKelurahan => _selectedKelurahan;
+  bool get favoritesOnly => _favoritesOnly;
+  bool get onlineOnly => _onlineOnly;
   String get searchQuery => _searchQuery;
   int get mapFocusVersion => _mapFocusVersion;
+
+  bool isFavorite(String? cameraId) =>
+      cameraId != null && _favoriteIds.contains(cameraId);
+
+  int get favoriteCount =>
+      _cameras.where((c) => _favoriteIds.contains(c.id)).length;
+
+  List<CctvCamera> get recentCameras {
+    if (_recentIds.isEmpty || _cameras.isEmpty) return const [];
+    final byId = {for (final cam in _cameras) cam.id: cam};
+    return _recentIds
+        .map((id) => byId[id])
+        .whereType<CctvCamera>()
+        .toList();
+  }
+
+  double? distanceMetersTo(CctvCamera? camera) {
+    if (camera == null || !camera.hasValidCoords || !hasUserLocation) {
+      return null;
+    }
+    return CctvLocalService.distanceMeters(
+      _userLat!,
+      _userLng!,
+      camera.latitude,
+      camera.longitude,
+    );
+  }
+
+  String? distanceLabelFor(CctvCamera? camera) {
+    final meters = distanceMetersTo(camera);
+    if (meters == null) return null;
+    return CctvLocalService.formatDistance(meters);
+  }
 
   bool? statusOf(String? cameraId) {
     if (cameraId == null) return null;
@@ -202,9 +262,29 @@ class CctvController extends ChangeNotifier {
     return found != null ? 'Kel. ${found.kelurahan.nama}' : '';
   }
 
+  List<CctvCamera> _orderedCameras(List<CctvCamera> list) {
+    if (!sortByNearest) return list;
+    final copy = List<CctvCamera>.from(list);
+    copy.sort((a, b) {
+      final da = distanceMetersTo(a);
+      final db = distanceMetersTo(b);
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return da.compareTo(db);
+    });
+    return copy;
+  }
+
   List<CctvCamera> get filteredCameras {
     final q = _searchQuery.trim().toLowerCase();
-    return _cameras.where((cam) {
+    final filtered = _cameras.where((cam) {
+      if (_favoritesOnly && !_favoriteIds.contains(cam.id)) {
+        return false;
+      }
+      if (_onlineOnly && _aliveStatus[cam.id] != true) {
+        return false;
+      }
       if (_selectedCategory != null && cam.categoryUuid != _selectedCategory) {
         return false;
       }
@@ -212,9 +292,13 @@ class CctvController extends ChangeNotifier {
       if (!_matchesSearchQuery(cam, q)) return false;
       return true;
     }).toList();
+
+    return _orderedCameras(filtered);
   }
 
   bool get hasActiveFilters =>
+      _favoritesOnly ||
+      _onlineOnly ||
       _selectedCategory != null ||
       _selectedKecamatan != null ||
       _selectedKelurahan != null ||
@@ -258,12 +342,28 @@ class CctvController extends ChangeNotifier {
         .toList();
   }
 
+  /// Picks the initial camera: nearest camera if user location is known,
+  /// otherwise falls back to the default first camera.
+  CctvCamera? _pickInitialCamera() {
+    if (_cameras.isEmpty) return null;
+    if (hasUserLocation) {
+      final ordered = _orderedCameras(_cameras);
+      final nearest = ordered.where((c) => c.hasValidCoords).firstOrNull;
+      if (nearest != null) return nearest;
+    }
+    return _cameras.first;
+  }
+
   /// Hydrates data directly (useful for testing).
   void hydrate({
     required List<CctvCamera> cameras,
     List<CctvCategory> categories = const [],
     List<CctvKecamatan> wilayah = const [],
     Map<String, bool>? aliveStatus,
+    Set<String>? favoriteIds,
+    List<String>? recentIds,
+    double? userLat,
+    double? userLng,
   }) {
     _cameras = cameras;
     _categories = categories;
@@ -273,8 +373,22 @@ class CctvController extends ChangeNotifier {
         ..clear()
         ..addAll(aliveStatus);
     }
+    if (favoriteIds != null) {
+      _favoriteIds
+        ..clear()
+        ..addAll(favoriteIds);
+    }
+    if (recentIds != null) {
+      _recentIds
+        ..clear()
+        ..addAll(recentIds.take(CctvLocalService.maxRecents));
+    }
+    if (userLat != null && userLng != null) {
+      _userLat = userLat;
+      _userLng = userLng;
+    }
     if (_cameras.isNotEmpty && _activeCamera == null) {
-      _activeCamera = _cameras.first;
+      _activeCamera = _pickInitialCamera();
     }
     _notify();
   }
@@ -289,6 +403,12 @@ class CctvController extends ChangeNotifier {
         _api.getCameras(forceRefresh: forceRefresh),
         _api.getCategories(forceRefresh: forceRefresh),
         _api.getWilayah(forceRefresh: forceRefresh),
+        _localService.loadFavorites(),
+        _localService.loadRecents(),
+        _localService.getCurrentLocation(
+          requestPermission: true,
+          timeout: const Duration(milliseconds: 3500),
+        ),
       ]);
 
       if (_disposed) return;
@@ -297,10 +417,24 @@ class CctvController extends ChangeNotifier {
       _categories = results[1] as List<CctvCategory>;
       _wilayahList = results[2] as List<CctvKecamatan>;
 
+      _favoriteIds
+        ..clear()
+        ..addAll(results[3] as Set<String>);
+      _recentIds
+        ..clear()
+        ..addAll(results[4] as List<String>);
+
+      final coords = results[5] as CctvCoordinates?;
+      if (coords != null) {
+        _userLat = coords.latitude;
+        _userLng = coords.longitude;
+        _sortByNearest = true;
+      }
+
       if (_cameras.isNotEmpty && _activeCamera == null) {
         _isAutoScanning = true;
         _autoScanAttempts = 0;
-        _activeCamera = _cameras.first;
+        _activeCamera = _pickInitialCamera();
       }
 
       _isLoadingInitial = false;
@@ -314,6 +448,87 @@ class CctvController extends ChangeNotifier {
       _initialError = e.toString().replaceFirst('Exception: ', '');
       _notify();
     }
+  }
+
+  Future<bool> locateNearestAndSelect({bool selectNearestCamera = true}) async {
+    if (_isLocating) return false;
+    _isLocating = true;
+    _notify();
+
+    try {
+      final coords = await _localService.getCurrentLocation(
+        requestPermission: true,
+        timeout: const Duration(seconds: 5),
+      );
+      if (_disposed) return false;
+
+      if (coords == null) {
+        return false;
+      }
+
+      _userLat = coords.latitude;
+      _userLng = coords.longitude;
+      _sortByNearest = true;
+
+      if (selectNearestCamera && _cameras.isNotEmpty) {
+        final nearest = _pickInitialCamera();
+        if (nearest != null) {
+          _isAutoScanning = true;
+          _autoScanAttempts = 0;
+          _activeCamera = nearest;
+        }
+      }
+      _notify();
+      return true;
+    } finally {
+      if (!_disposed) {
+        _isLocating = false;
+        _notify();
+      }
+    }
+  }
+
+  void toggleSortByNearest() {
+    if (!hasUserLocation) {
+      unawaited(locateNearestAndSelect(selectNearestCamera: false));
+      return;
+    }
+    _sortByNearest = !_sortByNearest;
+    _notify();
+  }
+
+  void toggleFavorite(String cameraId) {
+    if (_favoriteIds.contains(cameraId)) {
+      _favoriteIds.remove(cameraId);
+      if (_favoriteIds.isEmpty && _favoritesOnly) {
+        _favoritesOnly = false;
+      }
+    } else {
+      _favoriteIds.add(cameraId);
+    }
+    unawaited(_localService.saveFavorites(_favoriteIds));
+    _notify();
+  }
+
+  void setFavoritesOnly(bool value) {
+    if (_favoritesOnly == value) return;
+    _favoritesOnly = value;
+    _notify();
+  }
+
+  void setOnlineOnly(bool value) {
+    if (_onlineOnly == value) return;
+    _onlineOnly = value;
+    _notify();
+  }
+
+  void _recordRecent(String cameraId) {
+    _recentIds.remove(cameraId);
+    _recentIds.insert(0, cameraId);
+    if (_recentIds.length > CctvLocalService.maxRecents) {
+      _recentIds.removeRange(CctvLocalService.maxRecents, _recentIds.length);
+    }
+    unawaited(_localService.saveRecents(_recentIds));
   }
 
   Future<void> checkAlive({bool forceRefresh = false}) async {
@@ -347,7 +562,8 @@ class CctvController extends ChangeNotifier {
   }
 
   void selectCategory(String? categoryUuid) {
-    if (_selectedCategory == categoryUuid) return;
+    if (_selectedCategory == categoryUuid && !_favoritesOnly) return;
+    _favoritesOnly = false;
     _selectedCategory = categoryUuid;
     _notify();
   }
@@ -388,6 +604,8 @@ class CctvController extends ChangeNotifier {
   }
 
   void resetFilters() {
+    _favoritesOnly = false;
+    _onlineOnly = false;
     _selectedCategory = null;
     _selectedKecamatan = null;
     _selectedKelurahan = null;
@@ -399,6 +617,7 @@ class CctvController extends ChangeNotifier {
   void selectCamera(CctvCamera camera, {bool fromAutoScan = false}) {
     if (!fromAutoScan) {
       _isAutoScanning = false;
+      _recordRecent(camera.id);
     }
     if (_activeCamera?.id != camera.id) {
       _playingLiveCameraId = null;
@@ -410,15 +629,16 @@ class CctvController extends ChangeNotifier {
   void markCameraLive(String cameraId) {
     _isAutoScanning = false;
     _playingLiveCameraId = cameraId;
+    _recordRecent(cameraId);
     if (_aliveStatus[cameraId] != true) {
       _aliveStatus[cameraId] = true;
-      _notify();
     }
+    _notify();
   }
 
   /// Called when the active HLS stream fails to load.
-  /// Returns `true` if auto-scan advanced to the next camera; `false` if the
-  /// player should display its error overlay.
+  /// Advances along the current ordered list (nearest-first if location is
+  /// available, or default order otherwise) up to [maxAutoScanAttempts].
   bool handleStreamError() {
     if (!_isAutoScanning || _autoScanAttempts >= maxAutoScanAttempts) {
       _isAutoScanning = false;

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nylo_framework/nylo_framework.dart';
 import 'package:app_pintar_nylo/bootstrap/env.g.dart';
@@ -8,6 +9,7 @@ import 'package:app_pintar_nylo/modules/cctv/models/cctv_category.dart';
 import 'package:app_pintar_nylo/modules/cctv/models/cctv_wilayah.dart';
 import 'package:app_pintar_nylo/modules/cctv/pages/cctv_fullscreen_map_page.dart';
 import 'package:app_pintar_nylo/modules/cctv/pages/cctv_page.dart';
+import 'package:app_pintar_nylo/modules/cctv/widgets/cctv_loading_view.dart';
 
 CctvController _buildSampleController() {
   final controller = CctvController();
@@ -156,6 +158,26 @@ void main() {
         expect(tester.takeException(), isNull);
         expect(find.text('Putar'), findsOneWidget);
         expect(find.textContaining('Peta CCTV'), findsOneWidget);
+      },
+    );
+
+    nyWidgetTest(
+      'CctvLoadingView renders cleanly without overflow on ${entry.key}',
+      (tester) async {
+        tester.view.physicalSize = entry.value;
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        await tester.pumpNyWidgetSimple(
+          const Scaffold(body: CctvLoadingView()),
+        );
+        await tester.pump(const Duration(milliseconds: 200));
+
+        expect(tester.takeException(), isNull);
+        expect(find.byType(CctvLoadingView), findsOneWidget);
       },
     );
   }

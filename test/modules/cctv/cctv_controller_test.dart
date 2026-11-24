@@ -3,6 +3,7 @@ import 'package:app_pintar_nylo/modules/cctv/controllers/cctv_controller.dart';
 import 'package:app_pintar_nylo/modules/cctv/models/cctv_camera.dart';
 import 'package:app_pintar_nylo/modules/cctv/models/cctv_category.dart';
 import 'package:app_pintar_nylo/modules/cctv/models/cctv_wilayah.dart';
+import 'package:app_pintar_nylo/modules/cctv/services/cctv_local_service.dart';
 
 void main() {
   group('CctvCamera GeoJSON & Formatters', () {
@@ -202,6 +203,50 @@ void main() {
       controller.selectCamera(controller.cameras[2]);
       expect(controller.activeCamera?.id, 'c3');
       expect(controller.handleStreamError(), isFalse);
+    });
+
+    test('selects nearest camera first and sorts by distance when location known',
+        () {
+      final nearestCtrl = CctvController();
+      addTearDown(nearestCtrl.dispose);
+
+      // Position right next to c3 (-3.3185, 114.5931)
+      nearestCtrl.hydrate(
+        cameras: controller.cameras,
+        userLat: -3.31852,
+        userLng: 114.59312,
+      );
+
+      expect(nearestCtrl.activeCamera?.id, 'c3');
+      expect(nearestCtrl.filteredCameras.first.id, 'c3');
+      expect(nearestCtrl.filteredCameras.last.id, 'c4'); // Non-GPS last
+      expect(nearestCtrl.distanceLabelFor(nearestCtrl.cameras[2]), isNotNull);
+
+      // Auto-scan advances to next nearest camera (c1)
+      expect(nearestCtrl.handleStreamError(), isTrue);
+      expect(nearestCtrl.activeCamera?.id, 'c1');
+    });
+
+    test('supports favorites, online-only filter, recents, and distance format',
+        () {
+      controller.toggleFavorite('c2');
+      expect(controller.isFavorite('c2'), isTrue);
+      expect(controller.favoriteCount, 1);
+
+      controller.setFavoritesOnly(true);
+      expect(controller.filteredCameras.map((c) => c.id).toList(), ['c2']);
+
+      controller.setFavoritesOnly(false);
+      controller.setOnlineOnly(true);
+      expect(controller.filteredCameras.map((c) => c.id).toList(), ['c2']);
+
+      controller.setOnlineOnly(false);
+      controller.selectCamera(controller.cameras[1]);
+      controller.selectCamera(controller.cameras[2]);
+      expect(controller.recentCameras.map((c) => c.id).toList(), ['c3', 'c2']);
+
+      expect(CctvLocalService.formatDistance(420), '420 m');
+      expect(CctvLocalService.formatDistance(1460), '1.5 km');
     });
   });
 }

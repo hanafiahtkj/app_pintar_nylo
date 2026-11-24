@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '/modules/cctv/controllers/cctv_controller.dart';
 import '/modules/cctv/models/cctv_camera.dart';
+import '/modules/cctv/services/cctv_local_service.dart';
 import '/modules/cctv/widgets/cctv_theme_tokens.dart';
 
 class CctvTelemetryCard extends StatefulWidget {
@@ -62,6 +63,8 @@ class _CctvTelemetryCardState extends State<CctvTelemetryCard> {
     CctvCamera? activeCam,
   ) {
     final fullBleed = widget.isFullBleed;
+    final isFav = widget.controller.isFavorite(activeCam?.id);
+    final distanceLabel = widget.controller.distanceLabelFor(activeCam);
 
     return Container(
       decoration: BoxDecoration(
@@ -97,21 +100,72 @@ class _CctvTelemetryCardState extends State<CctvTelemetryCard> {
                           style: tokens.title,
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          activeCam.address.isNotEmpty
-                              ? activeCam.address
-                              : activeCam.displayCategory,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: tokens.caption.copyWith(
-                            fontSize: 12,
-                            color: tokens.textMuted,
-                          ),
+                        Row(
+                          children: [
+                            if (distanceLabel != null) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: tokens.primarySoft,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.near_me_rounded,
+                                      size: 11,
+                                      color: tokens.primary,
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      distanceLabel,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: tokens.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
+                            Expanded(
+                              child: Text(
+                                activeCam.address.isNotEmpty
+                                    ? activeCam.address
+                                    : activeCam.displayCategory,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: tokens.caption.copyWith(
+                                  fontSize: 12,
+                                  color: tokens.textMuted,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
+                  _SoftIconAction(
+                    icon: isFav
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
+                    tooltip: isFav ? 'Hapus dari favorit' : 'Simpan ke favorit',
+                    color: isFav
+                        ? const Color(0xFFF59E0B)
+                        : tokens.textSecondary,
+                    background:
+                        isFav ? tokens.warningSoft : tokens.surfaceSubtle,
+                    onTap: () => widget.controller.toggleFavorite(activeCam.id),
+                  ),
+                  const SizedBox(width: 6),
                   _SoftIconAction(
                     icon: Icons.map_outlined,
                     tooltip: 'Lihat lokasi di peta',
@@ -146,10 +200,50 @@ class _CctvTelemetryCardState extends State<CctvTelemetryCard> {
                   Divider(height: 1, color: tokens.divider),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                    child: _MetadataGrid(
-                      camera: activeCam,
-                      tokens: tokens,
-                      onCopyCoords: () => _copyCoords(context, activeCam),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _MetadataGrid(
+                          camera: activeCam,
+                          tokens: tokens,
+                          onCopyCoords: () => _copyCoords(context, activeCam),
+                        ),
+                        if (activeCam.hasValidCoords) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 40,
+                            child: OutlinedButton.icon(
+                              onPressed: () =>
+                                  CctvLocalService.openInExternalMaps(
+                                      activeCam),
+                              icon: Icon(
+                                Icons.directions_outlined,
+                                size: 17,
+                                color: tokens.primary,
+                              ),
+                              label: Text(
+                                'Buka Rute di Maps',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: tokens.primary,
+                                ),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(
+                                  color: tokens.primary.withValues(alpha: 0.3),
+                                ),
+                                backgroundColor: tokens.primarySoft,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    CctvTokens.radiusMd,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],
@@ -173,6 +267,9 @@ class _CctvTelemetryCardState extends State<CctvTelemetryCard> {
     CctvTokens tokens,
     CctvCamera? activeCam,
   ) {
+    final isFav = widget.controller.isFavorite(activeCam?.id);
+    final distanceLabel = widget.controller.distanceLabelFor(activeCam);
+
     return Container(
       decoration: BoxDecoration(
         color: tokens.surfaceElevated,
@@ -197,11 +294,57 @@ class _CctvTelemetryCardState extends State<CctvTelemetryCard> {
 
           if (activeCam != null) ...[
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+              padding: const EdgeInsets.fromLTRB(18, 16, 14, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Lokasi Pemantauan', style: tokens.caption),
+                  Row(
+                    children: [
+                      Text('Lokasi Pemantauan', style: tokens.caption),
+                      if (distanceLabel != null) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: tokens.primarySoft,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.near_me_rounded,
+                                  size: 11, color: tokens.primary),
+                              const SizedBox(width: 3),
+                              Text(
+                                distanceLabel,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: tokens.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      _SoftIconAction(
+                        icon: isFav
+                            ? Icons.star_rounded
+                            : Icons.star_outline_rounded,
+                        tooltip:
+                            isFav ? 'Hapus dari favorit' : 'Simpan ke favorit',
+                        color: isFav
+                            ? const Color(0xFFF59E0B)
+                            : tokens.textSecondary,
+                        background:
+                            isFav ? tokens.warningSoft : tokens.surfaceSubtle,
+                        onTap: () =>
+                            widget.controller.toggleFavorite(activeCam.id),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 5),
                   Text(
                     activeCam.displayName.isNotEmpty
@@ -239,24 +382,58 @@ class _CctvTelemetryCardState extends State<CctvTelemetryCard> {
 
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              child: SizedBox(
-                height: CctvTokens.minTouchTarget,
-                child: FilledButton.icon(
-                  onPressed: widget.onOpenMap,
-                  icon: const Icon(Icons.map_outlined, size: 18),
-                  label: const Text(
-                    'Lihat di Peta',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: tokens.primary,
-                    foregroundColor: tokens.primaryOnFill,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(CctvTokens.radiusMd),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: CctvTokens.minTouchTarget,
+                      child: FilledButton.icon(
+                        onPressed: widget.onOpenMap,
+                        icon: const Icon(Icons.map_outlined, size: 18),
+                        label: const Text(
+                          'Lihat di Peta',
+                          style: TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: tokens.primary,
+                          foregroundColor: tokens.primaryOnFill,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(CctvTokens.radiusMd),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  if (activeCam.hasValidCoords) ...[
+                    const SizedBox(width: 8),
+                    Tooltip(
+                      message: 'Buka rute di Maps',
+                      child: SizedBox(
+                        width: CctvTokens.minTouchTarget,
+                        height: CctvTokens.minTouchTarget,
+                        child: Material(
+                          color: tokens.primarySoft,
+                          borderRadius:
+                              BorderRadius.circular(CctvTokens.radiusMd),
+                          child: InkWell(
+                            onTap: () =>
+                                CctvLocalService.openInExternalMaps(activeCam),
+                            borderRadius:
+                                BorderRadius.circular(CctvTokens.radiusMd),
+                            child: Icon(
+                              Icons.directions_outlined,
+                              size: 20,
+                              color: tokens.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],

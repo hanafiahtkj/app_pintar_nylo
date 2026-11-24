@@ -340,7 +340,6 @@ class _CctvMapViewState extends State<CctvMapView>
           ),
         if (_showListPanel)
           Container(
-            constraints: const BoxConstraints(maxHeight: 680),
             decoration: widget.isFullBleed
                 ? null
                 : BoxDecoration(
@@ -455,143 +454,182 @@ class _MapCameraListPanel extends StatelessWidget {
                 ],
               ),
             )
+          else if (height != null)
+            Expanded(
+              child: _buildListView(scrollable: true),
+            )
           else
-            Flexible(
-              child: ListView.separated(
-                shrinkWrap: height == null,
-                padding: const EdgeInsets.all(10),
-                itemCount: groups.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 4),
-                itemBuilder: (context, index) {
-                  final group = groups[index];
-                  final primary = group.primaryCamera;
-                  final isActive =
-                      group.containsCamera(controller.activeCamera?.id);
-                  final status = group.aliveStatus(controller.aliveStatus);
+            _buildListView(scrollable: false),
+        ],
+      ),
+    );
+  }
 
-                  final dotColor = status == true
-                      ? tokens.online
-                      : status == false
-                          ? tokens.offline
-                          : tokens.textMuted;
+  Widget _buildListView({required bool scrollable}) {
+    return ListView.separated(
+      shrinkWrap: !scrollable,
+      physics: scrollable
+          ? const AlwaysScrollableScrollPhysics()
+          : const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(10),
+      itemCount: groups.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 4),
+      itemBuilder: (context, index) {
+        final group = groups[index];
+        final primary = group.primaryCamera;
+        final isActive = group.containsCamera(controller.activeCamera?.id);
+        final status = group.aliveStatus(controller.aliveStatus);
+        final isFav = group.cameras.any((c) => controller.isFavorite(c.id));
+        final distanceLabel = controller.distanceLabelFor(primary);
 
-                  return Material(
-                    color: isActive ? tokens.primarySoft : Colors.transparent,
-                    borderRadius: BorderRadius.circular(CctvTokens.radiusMd),
-                    child: InkWell(
-                      onTap: () => onSelectGroup(group),
-                      borderRadius: BorderRadius.circular(CctvTokens.radiusMd),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+        final dotColor = status == true
+            ? tokens.online
+            : status == false
+                ? tokens.offline
+                : tokens.textMuted;
+
+        return Material(
+          color: isActive ? tokens.primarySoft : Colors.transparent,
+          borderRadius: BorderRadius.circular(CctvTokens.radiusMd),
+          child: InkWell(
+            onTap: () => onSelectGroup(group),
+            borderRadius: BorderRadius.circular(CctvTokens.radiusMd),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          primary.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isActive
+                                ? tokens.primary
+                                : tokens.textPrimary,
+                          ),
                         ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: dotColor,
-                                shape: BoxShape.circle,
-                              ),
+                        if (primary.wilayahLabel.isNotEmpty)
+                          Text(
+                            primary.wilayahLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: tokens.primary,
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    primary.displayName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: isActive
-                                          ? tokens.primary
-                                          : tokens.textPrimary,
-                                    ),
-                                  ),
-                                  if (primary.wilayahLabel.isNotEmpty)
-                                    Text(
-                                      primary.wilayahLabel,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500,
-                                        color: tokens.primary,
-                                      ),
-                                    ),
-                                  Text(
-                                    primary.address.isNotEmpty
-                                        ? primary.address
-                                        : primary.displayCategory,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: tokens.caption,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            if (group.isMultiCamera)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: tokens.primary,
-                                  borderRadius: BorderRadius.circular(
-                                    CctvTokens.radiusPill,
-                                  ),
-                                ),
-                                child: Text(
-                                  '${group.cameras.length}',
-                                  style: TextStyle(
-                                    color: tokens.primaryOnFill,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              )
-                            else if (!group.hasValidCoords)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 7,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: tokens.warningSoft,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  'Non-GPS',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: tokens.warningText,
-                                  ),
-                                ),
-                              )
-                            else
-                              Icon(
-                                Icons.chevron_right_rounded,
-                                size: 18,
-                                color: tokens.textMuted,
-                              ),
-                          ],
+                          ),
+                        Text(
+                          primary.address.isNotEmpty
+                              ? primary.address
+                              : primary.displayCategory,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: tokens.caption,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  if (isFav) ...[
+                    const Icon(
+                      Icons.star_rounded,
+                      size: 15,
+                      color: Color(0xFFF59E0B),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  if (distanceLabel != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tokens.surfaceSubtle,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        distanceLabel,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: tokens.textSecondary,
                         ),
                       ),
                     ),
-                  );
-                },
+                    const SizedBox(width: 4),
+                  ],
+                  if (group.isMultiCamera)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tokens.primary,
+                        borderRadius: BorderRadius.circular(
+                          CctvTokens.radiusPill,
+                        ),
+                      ),
+                      child: Text(
+                        '${group.cameras.length}',
+                        style: TextStyle(
+                          color: tokens.primaryOnFill,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    )
+                  else if (!group.hasValidCoords)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: tokens.warningSoft,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Non-GPS',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: tokens.warningText,
+                        ),
+                      ),
+                    )
+                  else
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: tokens.textMuted,
+                    ),
+                ],
               ),
             ),
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 }
