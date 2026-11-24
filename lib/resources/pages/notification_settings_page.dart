@@ -62,6 +62,8 @@ class _NotificationSettingsPageState extends NyPage<NotificationSettingsPage> {
         theme.dividerColor.withValues(alpha: isDark ? 0.22 : 0.14);
 
     return Scaffold(
+      backgroundColor:
+          isDark ? theme.scaffoldBackgroundColor : const Color(0xFFFAFBFE),
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0.5,
@@ -101,61 +103,68 @@ class _NotificationSettingsPageState extends NyPage<NotificationSettingsPage> {
                 Container(
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                    color: theme.cardColor,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: borderColor),
+                    color: isDark ? theme.cardColor : Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: isDark ? Border.all(color: borderColor) : null,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black
-                            .withValues(alpha: isDark ? 0.2 : 0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
+                        color: const Color(0xFF0F172A)
+                            .withValues(alpha: isDark ? 0.2 : 0.045),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
                   child: Material(
                     type: MaterialType.transparency,
                     child: SwitchListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    secondary: Container(
-                      padding: const EdgeInsets.all(9),
-                      decoration: BoxDecoration(
-                        color: accentBlue.withValues(alpha: isDark ? 0.16 : 0.1),
-                        borderRadius: BorderRadius.circular(10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
                       ),
-                      child: Icon(
-                        Icons.notifications_active_outlined,
-                        color: accentBlue,
-                        size: 20,
-                      ),
-                    ),
-                    title: Text(
-                      'Notifikasi Push',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: theme.textTheme.bodyLarge?.color,
-                      ),
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        'Terima pemberitahuan tentang layanan, berita, dan info penting.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: mutedColor,
-                          height: 1.35,
+                      secondary: Container(
+                        padding: const EdgeInsets.all(9),
+                        decoration: BoxDecoration(
+                          color:
+                              accentBlue.withValues(alpha: isDark ? 0.16 : 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.notifications_active_outlined,
+                          color: accentBlue,
+                          size: 20,
                         ),
                       ),
+                      title: Text(
+                        'Notifikasi Push',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: theme.textTheme.bodyLarge?.color,
+                        ),
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Terima pemberitahuan tentang layanan, berita, dan info penting.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: mutedColor,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                      activeThumbColor: Colors.white,
+                      activeTrackColor: accentBlue,
+                      inactiveThumbColor: Colors.white,
+                      inactiveTrackColor: isDark
+                          ? Colors.white.withValues(alpha: 0.18)
+                          : const Color(0xFFE2E8F0),
+                      trackOutlineColor:
+                          WidgetStateProperty.all(Colors.transparent),
+                      value: _pushEnabled,
+                      onChanged: _isSaving ? null : _onTogglePush,
                     ),
-                    activeThumbColor: accentBlue,
-                    activeTrackColor: accentBlue.withValues(alpha: 0.4),
-                    value: _pushEnabled,
-                    onChanged: _isSaving ? null : _onTogglePush,
-                  ),
                   ),
                 ),
                 const SizedBox(height: 14),

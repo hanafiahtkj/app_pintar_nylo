@@ -209,8 +209,8 @@ class _CategoryListWidgetState extends NyState<CategoryListWidget> {
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A)
-                .withValues(alpha: isDark ? 0.22 : 0.045),
-            blurRadius: 14,
+                .withValues(alpha: isDark ? 0.22 : 0.06),
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],

@@ -55,7 +55,6 @@ class _AppPageState extends NyPage<AppPage> {
   @override
   Widget view(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
@@ -64,8 +63,7 @@ class _AppPageState extends NyPage<AppPage> {
           FocusScope.of(context).unfocus();
         },
         child: Scaffold(
-          backgroundColor:
-              isDark ? theme.scaffoldBackgroundColor : const Color(0xFFFAFBFE),
+          backgroundColor: theme.scaffoldBackgroundColor,
           appBar: _buildAppBar(context),
           body: _buildBody(context),
         ),
@@ -162,8 +160,25 @@ class _AppPageState extends NyPage<AppPage> {
           alignment: Alignment.centerLeft,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 640),
-            child: SizedBox(
+            child: Container(
               height: 44,
+              decoration: BoxDecoration(
+                color: isDark ? theme.cardColor : Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: isDark
+                    ? Border.all(
+                        color: theme.dividerColor.withValues(alpha: 0.2),
+                      )
+                    : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A)
+                        .withValues(alpha: isDark ? 0.22 : 0.065),
+                    blurRadius: 14,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
               child: TextField(
                 controller: _searchController,
                 focusNode: _searchFocusNode,
@@ -198,27 +213,21 @@ class _AppPageState extends NyPage<AppPage> {
                         )
                       : null,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                      color: theme.dividerColor.withValues(
-                        alpha: isDark ? 0.25 : 0.14,
-                      ),
-                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                      color: theme.dividerColor.withValues(
-                        alpha: isDark ? 0.25 : 0.14,
-                      ),
-                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: accentColor, width: 1.4),
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(
+                      color: accentColor.withValues(alpha: 0.6),
+                      width: 1.2,
+                    ),
                   ),
-                  filled: true,
-                  fillColor: isDark ? theme.cardColor : const Color(0xFFF1F5F9),
+                  filled: false,
                   contentPadding: const EdgeInsets.symmetric(vertical: 0),
                 ),
               ),

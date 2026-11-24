@@ -56,8 +56,6 @@ class _CategoryPageState extends NyPage<CategoryPage> {
         isDark ? const Color(0xFF6EA8FE) : const Color(0xFF1455D4);
     final unselectedColor =
         isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
-    final dividerColor =
-        theme.dividerColor.withValues(alpha: isDark ? 0.22 : 0.16);
 
     return DefaultTabController(
       length: 2,
@@ -95,12 +93,17 @@ class _CategoryPageState extends NyPage<CategoryPage> {
                             fontSize: 14,
                           ),
                           indicator: UnderlineTabIndicator(
+                            borderRadius: BorderRadius.circular(2),
                             borderSide: BorderSide(
-                              width: 3.0,
+                              width: 2.5,
                               color: accentColor,
                             ),
+                            insets: const EdgeInsets.symmetric(horizontal: 24),
                           ),
-                          dividerColor: dividerColor,
+                          dividerColor: theme.dividerColor.withValues(
+                            alpha: isDark ? 0.14 : 0.08,
+                          ),
+                          dividerHeight: 0.7,
                           tabs: const [
                             Tab(child: Text('Semua')),
                             Tab(child: Text('Kategori')),
@@ -112,9 +115,7 @@ class _CategoryPageState extends NyPage<CategoryPage> {
                 ),
                 Expanded(
                   child: ColoredBox(
-                    color: isDark
-                        ? theme.scaffoldBackgroundColor
-                        : const Color(0xFFFAFBFE),
+                    color: theme.scaffoldBackgroundColor,
                     child: TabBarView(
                       children: [
                         _KeepAliveTab(
@@ -195,8 +196,25 @@ class _CategoryPageState extends NyPage<CategoryPage> {
           alignment: Alignment.centerLeft,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 640),
-            child: SizedBox(
+            child: Container(
               height: 44,
+              decoration: BoxDecoration(
+                color: isDark ? theme.cardColor : Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: isDark
+                    ? Border.all(
+                        color: theme.dividerColor.withValues(alpha: 0.2),
+                      )
+                    : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A)
+                        .withValues(alpha: isDark ? 0.22 : 0.065),
+                    blurRadius: 14,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
               child: TextField(
                 controller: _searchController,
                 focusNode: _searchFocusNode,
@@ -229,27 +247,21 @@ class _CategoryPageState extends NyPage<CategoryPage> {
                         )
                       : null,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                      color: theme.dividerColor.withValues(
-                        alpha: isDark ? 0.25 : 0.14,
-                      ),
-                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(
-                      color: theme.dividerColor.withValues(
-                        alpha: isDark ? 0.25 : 0.14,
-                      ),
-                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: accentColor, width: 1.4),
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(
+                      color: accentColor.withValues(alpha: 0.6),
+                      width: 1.2,
+                    ),
                   ),
-                  filled: true,
-                  fillColor: isDark ? theme.cardColor : const Color(0xFFF1F5F9),
+                  filled: false,
                   contentPadding: const EdgeInsets.symmetric(vertical: 0),
                 ),
               ),

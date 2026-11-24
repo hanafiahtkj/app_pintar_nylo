@@ -399,43 +399,48 @@ class _ProfileBodyWidgetState extends NyState<ProfileBodyWidget> {
         ),
     ];
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(
-        isWide ? 24 : 16,
-        16,
-        isWide ? 24 : 16,
-        isWide ? 36 : 96,
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: accentBlue.withValues(alpha: 0.3),
-                          width: 2,
+    return ColoredBox(
+      color: isDark ? theme.scaffoldBackgroundColor : const Color(0xFFFAFBFE),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          isWide ? 24 : 16,
+          16,
+          isWide ? 24 : 16,
+          isWide ? 36 : 96,
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Column(
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: accentBlue
+                                  .withValues(alpha: isDark ? 0.2 : 0.12),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: CircleAvatar(
+                          radius: 42,
+                          backgroundColor: accentBlue
+                              .withValues(alpha: isDark ? 0.2 : 0.1),
+                          child: Icon(
+                            Icons.person_rounded,
+                            size: 42,
+                            color: accentBlue,
+                          ),
                         ),
                       ),
-                      child: CircleAvatar(
-                        radius: 42,
-                        backgroundColor:
-                            accentBlue.withValues(alpha: isDark ? 0.18 : 0.1),
-                        child: Icon(
-                          Icons.person_rounded,
-                          size: 44,
-                          color: accentBlue,
-                        ),
-                      ),
-                    ),
                     const SizedBox(height: 12),
                     Text(
                       (user?.name ?? '').trim().isNotEmpty
@@ -530,8 +535,14 @@ class _ProfileBodyWidgetState extends NyState<ProfileBodyWidget> {
                         mutedColor: mutedColor,
                         isDark: isDark,
                         trailing: Switch(
-                          activeThumbColor: accentBlue,
-                          activeTrackColor: accentBlue.withValues(alpha: 0.4),
+                          activeThumbColor: Colors.white,
+                          activeTrackColor: accentBlue,
+                          inactiveThumbColor: Colors.white,
+                          inactiveTrackColor: isDark
+                              ? Colors.white.withValues(alpha: 0.18)
+                              : const Color(0xFFE2E8F0),
+                          trackOutlineColor:
+                              WidgetStateProperty.all(Colors.transparent),
                           value: _darkMode,
                           onChanged: (val) async {
                             setState(() => _darkMode = val);
@@ -601,6 +612,7 @@ class _ProfileBodyWidgetState extends NyState<ProfileBodyWidget> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -628,14 +640,15 @@ class _ProfileBodyWidgetState extends NyState<ProfileBodyWidget> {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
+        color: isDark ? theme.cardColor : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: isDark ? Border.all(color: borderColor) : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: const Color(0xFF0F172A)
+                .withValues(alpha: isDark ? 0.2 : 0.045),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
           ),
         ],
       ),

@@ -64,6 +64,9 @@ class _NotificationDetailPageState extends NyPage<NotificationDetailPage> {
     final hasContent = title.isNotEmpty || desc.isNotEmpty || bodyHtml.isNotEmpty;
 
     return Scaffold(
+      backgroundColor: isWide && !isDark
+          ? const Color(0xFFFAFBFE)
+          : theme.scaffoldBackgroundColor,
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0.5,
@@ -103,9 +106,9 @@ class _NotificationDetailPageState extends NyPage<NotificationDetailPage> {
             )
           : SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
-                isWide ? 24 : 16,
-                isWide ? 16 : 12,
-                isWide ? 24 : 16,
+                isWide ? 24 : 20,
+                isWide ? 20 : 12,
+                isWide ? 24 : 20,
                 32,
               ),
               child: Center(
@@ -113,20 +116,24 @@ class _NotificationDetailPageState extends NyPage<NotificationDetailPage> {
                   constraints: const BoxConstraints(maxWidth: 760),
                   child: Container(
                     width: double.infinity,
-                    padding: EdgeInsets.all(isWide ? 28 : 20),
-                    decoration: BoxDecoration(
-                      color: theme.cardColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: borderColor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black
-                              .withValues(alpha: isDark ? 0.2 : 0.04),
-                          blurRadius: 12,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
+                    padding: isWide ? const EdgeInsets.all(28) : EdgeInsets.zero,
+                    decoration: isWide
+                        ? BoxDecoration(
+                            color: isDark ? theme.cardColor : Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                            border: isDark
+                                ? Border.all(color: borderColor)
+                                : null,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0F172A)
+                                    .withValues(alpha: isDark ? 0.2 : 0.045),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          )
+                        : null,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

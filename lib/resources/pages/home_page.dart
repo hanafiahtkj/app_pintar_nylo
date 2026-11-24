@@ -70,34 +70,34 @@ class _HomePageState extends NyPage<HomePage> {
 
   @override
   get init => () async {
-        listen<NotificationRefreshEvent>((_) {
-          _loadNotificationUnreadCount();
-        });
+    listen<NotificationRefreshEvent>((_) {
+      _loadNotificationUnreadCount();
+    });
 
-        listen<LoginSuccessEvent>((_) {
-          if (mounted) {
-            setState(() {
-              if (_pendingProfile) {
-                _pendingProfile = false;
-                _hasVisitedProfile = true;
-                _page = 3;
-              }
-            });
+    listen<LoginSuccessEvent>((_) {
+      if (mounted) {
+        setState(() {
+          if (_pendingProfile) {
+            _pendingProfile = false;
+            _hasVisitedProfile = true;
+            _page = 3;
           }
         });
+      }
+    });
 
-        listen<LogoutEvent>((_) {
-          if (mounted) {
-            setState(() {});
-          }
-        });
+    listen<LogoutEvent>((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
 
-        _loadAppVersion();
-        _loadNotificationUnreadCount();
-        _loadAppleLoginStatus();
-        _trackLaunchCount();
-        _loadHomeData();
-      };
+    _loadAppVersion();
+    _loadNotificationUnreadCount();
+    _loadAppleLoginStatus();
+    _trackLaunchCount();
+    _loadHomeData();
+  };
 
   Future<void> _loadHomeData() async {
     Future<void> fetchHotline() async {
@@ -123,8 +123,9 @@ class _HomePageState extends NyPage<HomePage> {
 
     Future<void> fetchUrgent() async {
       try {
-        final res =
-            await api<PintarApiService>((r) => r.getUrgentNotifications());
+        final res = await api<PintarApiService>(
+          (r) => r.getUrgentNotifications(),
+        );
         if (mounted && res != null) setState(() => _urgentNotifications = res);
       } catch (_) {}
     }
@@ -202,10 +203,7 @@ class _HomePageState extends NyPage<HomePage> {
       });
     }
     updateState(HomeAppGridWidget.state);
-    await Future.wait([
-      _loadHomeData(),
-      _loadNotificationUnreadCount(),
-    ]);
+    await Future.wait([_loadHomeData(), _loadNotificationUnreadCount()]);
   }
 
   Future<void> _triggerInAppReviewNative() async {
@@ -243,9 +241,9 @@ class _HomePageState extends NyPage<HomePage> {
           title: Text(
             'Beri Penilaian',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.orange,
-                ),
+              fontWeight: FontWeight.bold,
+              color: Colors.orange,
+            ),
           ),
           content: SingleChildScrollView(
             child: StatefulBuilder(
@@ -357,29 +355,28 @@ class _HomePageState extends NyPage<HomePage> {
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (
-        BuildContext buildContext,
-        Animation animation,
-        Animation secondaryAnimation,
-      ) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40.0),
-            child: Material(
-              color: Colors.transparent,
-              child: _ThankYouDialogContent(),
-            ),
-          ),
-        );
-      },
+      pageBuilder:
+          (
+            BuildContext buildContext,
+            Animation animation,
+            Animation secondaryAnimation,
+          ) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40.0),
+                child: Material(
+                  color: Colors.transparent,
+                  child: _ThankYouDialogContent(),
+                ),
+              ),
+            );
+          },
       transitionBuilder: (context, anim1, anim2, child) {
         return ScaleTransition(
-          scale: Tween<double>(begin: 0.5, end: 1.0).animate(
-            CurvedAnimation(
-              parent: anim1,
-              curve: Curves.easeInOut,
-            ),
-          ),
+          scale: Tween<double>(
+            begin: 0.5,
+            end: 1.0,
+          ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeInOut)),
           child: child,
         );
       },
@@ -416,9 +413,7 @@ class _HomePageState extends NyPage<HomePage> {
               body: Row(
                 children: [
                   _buildSideNav(isExtended: isDesktop),
-                  Expanded(
-                    child: _buildPageContent(isWide: true),
-                  ),
+                  Expanded(child: _buildPageContent(isWide: true)),
                 ],
               ),
             );
@@ -486,18 +481,29 @@ class _HomePageState extends NyPage<HomePage> {
   Widget _buildSideNav({required bool isExtended}) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final activeColor =
-        isDark ? const Color(0xFF6EA8FE) : const Color(0xFF1455D4);
-    final inactiveColor =
-        isDark ? Colors.grey.shade200 : const Color(0xFF334155);
-    final borderColor =
-        theme.dividerColor.withValues(alpha: isDark ? 0.2 : 0.14);
+    final activeColor = isDark
+        ? const Color(0xFF6EA8FE)
+        : const Color(0xFF1455D4);
+    final inactiveColor = isDark
+        ? Colors.grey.shade200
+        : const Color(0xFF334155);
+    final borderColor = theme.dividerColor.withValues(
+      alpha: isDark ? 0.12 : 0.07,
+    );
 
     return Container(
       width: isExtended ? 228 : 88,
       decoration: BoxDecoration(
         color: theme.cardColor,
-        border: Border(right: BorderSide(color: borderColor, width: 1)),
+        border: Border(right: BorderSide(color: borderColor, width: 0.7)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A)
+                .withValues(alpha: isDark ? 0.14 : 0.025),
+            blurRadius: 12,
+            offset: const Offset(2, 0),
+          ),
+        ],
       ),
       child: SafeArea(
         child: Padding(
@@ -530,8 +536,9 @@ class _HomePageState extends NyPage<HomePage> {
                             : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(11),
                         border: Border.all(
-                          color: theme.dividerColor
-                              .withValues(alpha: isDark ? 0.22 : 0.14),
+                          color: theme.dividerColor.withValues(
+                            alpha: isDark ? 0.14 : 0.08,
+                          ),
                         ),
                       ),
                       child: Image.asset(
@@ -654,7 +661,9 @@ class _HomePageState extends NyPage<HomePage> {
     required VoidCallback onTap,
   }) {
     return Material(
-      color: isActive ? activeColor.withValues(alpha: 0.11) : Colors.transparent,
+      color: isActive
+          ? activeColor.withValues(alpha: 0.11)
+          : Colors.transparent,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -663,8 +672,9 @@ class _HomePageState extends NyPage<HomePage> {
           height: 48,
           padding: EdgeInsets.symmetric(horizontal: isExtended ? 12 : 0),
           child: Row(
-            mainAxisAlignment:
-                isExtended ? MainAxisAlignment.start : MainAxisAlignment.center,
+            mainAxisAlignment: isExtended
+                ? MainAxisAlignment.start
+                : MainAxisAlignment.center,
             children: [
               Stack(
                 clipBehavior: Clip.none,
@@ -829,8 +839,9 @@ class _HomePageState extends NyPage<HomePage> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              const Color(0xFFD32F2F).withValues(alpha: 0.32),
+                          color: const Color(
+                            0xFFD32F2F,
+                          ).withValues(alpha: 0.32),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -957,8 +968,9 @@ class _HomePageState extends NyPage<HomePage> {
         }
 
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        final activeDotColor =
-            isDark ? const Color(0xFF6EA8FE) : const Color(0xFF1455D4);
+        final activeDotColor = isDark
+            ? const Color(0xFF6EA8FE)
+            : const Color(0xFF1455D4);
 
         return Column(
           children: [
@@ -1020,14 +1032,14 @@ class _HomePageState extends NyPage<HomePage> {
                                 imageUrl: banner.image ?? '',
                                 fit: BoxFit.cover,
                                 placeholder: (context, _) => Container(
-                                  color: Theme.of(context)
-                                      .dividerColor
-                                      .withValues(alpha: 0.12),
+                                  color: Theme.of(
+                                    context,
+                                  ).dividerColor.withValues(alpha: 0.12),
                                 ),
                                 errorWidget: (context, url, error) => Container(
-                                  color: Theme.of(context)
-                                      .dividerColor
-                                      .withValues(alpha: 0.16),
+                                  color: Theme.of(
+                                    context,
+                                  ).dividerColor.withValues(alpha: 0.16),
                                   child: const Icon(
                                     Icons.broken_image_outlined,
                                     color: Colors.grey,
@@ -1089,10 +1101,7 @@ class _HomePageState extends NyPage<HomePage> {
         SliverToBoxAdapter(
           child: Stack(
             children: [
-              Positioned.fill(
-                bottom: 82,
-                child: _buildBackgroundImage(),
-              ),
+              Positioned.fill(bottom: 82, child: _buildBackgroundImage()),
               Center(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
@@ -1130,7 +1139,7 @@ class _HomePageState extends NyPage<HomePage> {
           child: _wrapConstrained(
             _buildSectionHeader(
               'Layanan Publik',
-              subtitle: 'Silakan pilih layanan yang Anda butuhkan',
+              // subtitle: 'Silakan pilih layanan yang Anda butuhkan',
               onSeeAll: () => routeTo(CategoryPage.path),
             ),
             isWide: isWide,
@@ -1140,9 +1149,7 @@ class _HomePageState extends NyPage<HomePage> {
           child: _wrapConstrained(
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 8.0),
-              child: HomeAppGridWidget(
-                idKategori: 93,
-              ),
+              child: HomeAppGridWidget(idKategori: 93),
             ),
             isWide: isWide,
           ),
@@ -1192,9 +1199,7 @@ class _HomePageState extends NyPage<HomePage> {
             isWide: isWide,
           ),
         ),
-        SliverToBoxAdapter(
-          child: SizedBox(height: isWide ? 36 : 56),
-        ),
+        SliverToBoxAdapter(child: SizedBox(height: isWide ? 36 : 56)),
       ],
     );
   }
@@ -1373,17 +1378,17 @@ class _HomePageState extends NyPage<HomePage> {
         Text(
           'Selamat datang,',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.white.withValues(alpha: 0.92),
-              ),
+            color: Colors.white.withValues(alpha: 0.92),
+          ),
         ),
         const SizedBox(height: 2),
         Text(
           'Aplikasi Banjarmasin Pintar',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                fontSize: isWide ? 24 : 20,
-              ),
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: isWide ? 24 : 20,
+          ),
         ),
         const SizedBox(height: 14),
         _buildLoginOrLogoutButton(),
@@ -1400,16 +1405,16 @@ class _HomePageState extends NyPage<HomePage> {
           Text(
             user?.name ?? 'Unknown',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           Text(
             user?.nationalIdNumber ?? 'Unknown',
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       );
@@ -1427,10 +1432,7 @@ class _HomePageState extends NyPage<HomePage> {
       }
     };
 
-    browserLauncher.openBrowser(
-      url: AppConfig.ssoRegisUrl,
-      context: context,
-    );
+    browserLauncher.openBrowser(url: AppConfig.ssoRegisUrl, context: context);
   }
 
   Widget _buildSearchAndMainServices({required bool isWide}) {
@@ -1439,13 +1441,12 @@ class _HomePageState extends NyPage<HomePage> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Column(
-      crossAxisAlignment:
-          isWide ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      crossAxisAlignment: isWide
+          ? CrossAxisAlignment.start
+          : CrossAxisAlignment.center,
       children: [
         ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: isWide ? 600 : double.infinity,
-          ),
+          constraints: BoxConstraints(maxWidth: isWide ? 600 : double.infinity),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: isWide ? 0 : 8.0),
             child: Material(
@@ -1456,10 +1457,7 @@ class _HomePageState extends NyPage<HomePage> {
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
                 onTap: () {
-                  routeTo(
-                    CategoryPage.path,
-                    data: {'focusSearch': true},
-                  );
+                  routeTo(CategoryPage.path, data: {'focusSearch': true});
                 },
                 child: Container(
                   height: 50,
@@ -1503,9 +1501,7 @@ class _HomePageState extends NyPage<HomePage> {
         ),
         const SizedBox(height: 28),
         ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: isWide ? 520 : double.infinity,
-          ),
+          constraints: BoxConstraints(maxWidth: isWide ? 520 : double.infinity),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: isWide ? 0 : 8.0),
             child: Row(
@@ -1591,9 +1587,9 @@ class _HomePageState extends NyPage<HomePage> {
         Text(
           label,
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+          ),
         ),
       ],
     );
@@ -1723,8 +1719,9 @@ class _HomePageState extends NyPage<HomePage> {
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final actionColor =
-        isDark ? const Color(0xFF6EA8FE) : const Color(0xFF1455D4);
+    final actionColor = isDark
+        ? const Color(0xFF6EA8FE)
+        : const Color(0xFF1455D4);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16.0, 22.0, 12.0, 8.0),
@@ -1780,9 +1777,7 @@ class _HomePageState extends NyPage<HomePage> {
             Text(
               subtitle,
               style: theme.textTheme.labelSmall?.copyWith(
-                color: isDark
-                    ? Colors.grey.shade400
-                    : const Color(0xFF64748B),
+                color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B),
               ),
             ),
           ],
@@ -1807,9 +1802,9 @@ class _HomePageState extends NyPage<HomePage> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
               'Notifikasi Penting',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(height: 12),
@@ -1821,8 +1816,8 @@ class _HomePageState extends NyPage<HomePage> {
                 final cols = items.length == 1
                     ? 1
                     : (constraints.maxWidth >= 980 && items.length >= 3
-                        ? 3
-                        : 2);
+                          ? 3
+                          : 2);
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: GridView.builder(
@@ -1841,7 +1836,10 @@ class _HomePageState extends NyPage<HomePage> {
                 );
               }
 
-              final cardWidth = (constraints.maxWidth * 0.82).clamp(272.0, 320.0);
+              final cardWidth = (constraints.maxWidth * 0.82).clamp(
+                272.0,
+                320.0,
+              );
               return SizedBox(
                 height: 148,
                 child: ListView.separated(
@@ -1874,8 +1872,9 @@ class _HomePageState extends NyPage<HomePage> {
     var hex = item.color.replaceAll('#', '').trim();
     if (hex.length == 6) hex = 'FF$hex';
     final parsed = int.tryParse(hex, radix: 16);
-    final Color accentColor =
-        parsed != null ? Color(parsed) : const Color(0xFF1455D4);
+    final Color accentColor = parsed != null
+        ? Color(parsed)
+        : const Color(0xFF1455D4);
 
     final hsl = HSLColor.fromColor(accentColor);
     final Color readableAccent = isDark
@@ -1886,10 +1885,12 @@ class _HomePageState extends NyPage<HomePage> {
       accentColor.withValues(alpha: isDark ? 0.14 : 0.055),
       isDark ? theme.cardColor : Colors.white,
     );
-    final Color mutedColor =
-        isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
-    final Color descColor =
-        isDark ? Colors.grey.shade300 : const Color(0xFF475569);
+    final Color mutedColor = isDark
+        ? Colors.grey.shade400
+        : const Color(0xFF64748B);
+    final Color descColor = isDark
+        ? Colors.grey.shade300
+        : const Color(0xFF475569);
 
     return Container(
       decoration: BoxDecoration(
@@ -1900,8 +1901,9 @@ class _HomePageState extends NyPage<HomePage> {
             : null,
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A)
-                .withValues(alpha: isDark ? 0.2 : 0.035),
+            color: const Color(
+              0xFF0F172A,
+            ).withValues(alpha: isDark ? 0.2 : 0.035),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),

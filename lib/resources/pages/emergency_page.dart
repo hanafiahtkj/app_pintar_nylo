@@ -83,8 +83,6 @@ class _EmergencyPageState extends NyPage<EmergencyPage> {
         isDark ? const Color(0xFF6EA8FE) : const Color(0xFF1455D4);
     final unselectedColor =
         isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
-    final dividerColor =
-        theme.dividerColor.withValues(alpha: isDark ? 0.22 : 0.16);
 
     if (_loading) {
       return Scaffold(
@@ -178,7 +176,10 @@ class _EmergencyPageState extends NyPage<EmergencyPage> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: TabBar(
-                      dividerColor: dividerColor,
+                      dividerColor: theme.dividerColor.withValues(
+                        alpha: isDark ? 0.14 : 0.08,
+                      ),
+                      dividerHeight: 0.7,
                       indicatorColor: accentColor,
                       labelColor: accentColor,
                       unselectedLabelColor: unselectedColor,
@@ -192,10 +193,12 @@ class _EmergencyPageState extends NyPage<EmergencyPage> {
                         fontSize: 14,
                       ),
                       indicator: UnderlineTabIndicator(
+                        borderRadius: BorderRadius.circular(2),
                         borderSide: BorderSide(
-                          width: 3.0,
+                          width: 2.5,
                           color: accentColor,
                         ),
+                        insets: const EdgeInsets.symmetric(horizontal: 24),
                       ),
                       tabs: _categories
                           .map((c) => Tab(child: Text(c.categoryName)))

@@ -315,36 +315,79 @@ class _NotificationListWidgetState extends NyState<NotificationListWidget> {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadNotifications,
-      child: ListView.separated(
-        padding: EdgeInsets.fromLTRB(horizontalPad, 10, horizontalPad, bottomPad),
-        physics: widget.isScrollEnabled
-            ? const AlwaysScrollableScrollPhysics()
-            : const NeverScrollableScrollPhysics(),
-        controller: _scrollController,
-        itemCount: _notifications.length + (_isLoadingMore ? 1 : 0),
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (context, index) {
-          if (index == _notifications.length) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: CircularProgressIndicator(),
+    final dividerColor =
+        theme.dividerColor.withValues(alpha: isDark ? 0.18 : 0.12);
+
+    if (!isWide) {
+      return RefreshIndicator(
+        onRefresh: _loadNotifications,
+        child: ListView.separated(
+          padding: EdgeInsets.only(bottom: bottomPad),
+          physics: widget.isScrollEnabled
+              ? const AlwaysScrollableScrollPhysics()
+              : const NeverScrollableScrollPhysics(),
+          controller: _scrollController,
+          itemCount: _notifications.length + (_isLoadingMore ? 1 : 0),
+          separatorBuilder: (_, __) => Divider(
+            height: 1,
+            thickness: 0.7,
+            color: dividerColor,
+          ),
+          itemBuilder: (context, index) {
+            if (index == _notifications.length) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            return _buildNotificationItem(
+              context,
+              _notifications[index],
+              isDark,
+              isWide: false,
+            );
+          },
+        ),
+      );
+    }
+
+    return ColoredBox(
+      color: isDark ? theme.scaffoldBackgroundColor : const Color(0xFFFAFBFE),
+      child: RefreshIndicator(
+        onRefresh: _loadNotifications,
+        child: ListView.separated(
+          padding:
+              EdgeInsets.fromLTRB(horizontalPad, 16, horizontalPad, bottomPad),
+          physics: widget.isScrollEnabled
+              ? const AlwaysScrollableScrollPhysics()
+              : const NeverScrollableScrollPhysics(),
+          controller: _scrollController,
+          itemCount: _notifications.length + (_isLoadingMore ? 1 : 0),
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            if (index == _notifications.length) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 860),
+                child: _buildNotificationItem(
+                  context,
+                  _notifications[index],
+                  isDark,
+                  isWide: true,
+                ),
               ),
             );
-          }
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 860),
-              child: _buildNotificationItem(
-                context,
-                _notifications[index],
-                isDark,
-              ),
-            ),
-          );
-        },
+          },
+        ),
       ),
     );
   }
@@ -457,8 +500,9 @@ class _NotificationListWidgetState extends NyState<NotificationListWidget> {
   Widget _buildNotificationItem(
     BuildContext context,
     NotificationItem item,
-    bool isDark,
-  ) {
+    bool isDark, {
+    required bool isWide,
+  }) {
     final theme = Theme.of(context);
     final color = _parseColor(item.color);
     final isRead = _isRead(item);
@@ -466,142 +510,172 @@ class _NotificationListWidgetState extends NyState<NotificationListWidget> {
         isDark ? const Color(0xFF6EA8FE) : const Color(0xFF1455D4);
     final mutedColor =
         isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
-    final titleColor =
-        theme.textTheme.bodyLarge?.color ?? (isDark ? Colors.white : const Color(0xFF0F172A));
+    final titleColor = theme.textTheme.bodyLarge?.color ??
+        (isDark ? Colors.white : const Color(0xFF0F172A));
     final descColor =
         isDark ? Colors.grey.shade300 : const Color(0xFF475569);
 
+    final baseSurface = isDark ? theme.cardColor : Colors.white;
     final cardBg = isRead
-        ? theme.cardColor
+        ? baseSurface
         : Color.alphaBlend(
-            accentBlue.withValues(alpha: isDark ? 0.12 : 0.045),
-            theme.cardColor,
+            accentBlue.withValues(alpha: isDark ? 0.12 : 0.04),
+            baseSurface,
           );
-    final cardBorder = isRead
-        ? theme.dividerColor.withValues(alpha: isDark ? 0.2 : 0.14)
-        : accentBlue.withValues(alpha: isDark ? 0.35 : 0.24);
 
-    return Material(
-      color: cardBg,
-      borderRadius: BorderRadius.circular(14),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () {
-          _markAsRead(item);
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => NotificationDetailPage(item: item),
-            ),
-          );
-        },
-        child: Ink(
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: cardBorder),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: color.withValues(alpha: isDark ? 0.2 : 0.12),
-                      child: Icon(
-                        item.isUrgent
-                            ? Icons.campaign_rounded
-                            : Icons.notifications_rounded,
-                        color: color,
-                        size: 20,
+    final content = Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isWide ? 16 : 16,
+        vertical: 14,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Stack(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: color.withValues(alpha: isDark ? 0.2 : 0.12),
+                child: Icon(
+                  item.isUrgent
+                      ? Icons.campaign_rounded
+                      : Icons.notifications_rounded,
+                  color: color,
+                  size: 20,
+                ),
+              ),
+              if (!isRead)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 11,
+                    height: 11,
+                    decoration: BoxDecoration(
+                      color: accentBlue,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: cardBg,
+                        width: 2,
                       ),
                     ),
-                    if (!isRead)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          width: 11,
-                          height: 11,
-                          decoration: BoxDecoration(
-                            color: accentBlue,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: cardBg,
-                              width: 2,
-                            ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (item.sourceApp != null &&
+                        item.sourceApp!.trim().isNotEmpty)
+                      Expanded(
+                        child: Text(
+                          item.sourceApp!.trim().toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            color: mutedColor,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
+                      )
+                    else
+                      const Spacer(),
+                    const SizedBox(width: 8),
+                    Text(
+                      item.time,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: mutedColor,
+                        fontWeight:
+                            isRead ? FontWeight.w400 : FontWeight.w600,
                       ),
+                    ),
                   ],
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          if (item.sourceApp != null &&
-                              item.sourceApp!.trim().isNotEmpty)
-                            Expanded(
-                              child: Text(
-                                item.sourceApp!.trim().toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  color: mutedColor,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            )
-                          else
-                            const Spacer(),
-                          const SizedBox(width: 8),
-                          Text(
-                            item.time,
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: mutedColor,
-                              fontWeight:
-                                  isRead ? FontWeight.w400 : FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        item.title.trim(),
-                        style: TextStyle(
-                          fontWeight: isRead ? FontWeight.w600 : FontWeight.w700,
-                          fontSize: 15,
-                          color: titleColor,
-                          height: 1.3,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.desc.trim(),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: descColor,
-                          height: 1.38,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                const SizedBox(height: 5),
+                Text(
+                  item.title.trim(),
+                  style: TextStyle(
+                    fontWeight: isRead ? FontWeight.w600 : FontWeight.w700,
+                    fontSize: 15,
+                    color: titleColor,
+                    height: 1.3,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  item.desc.trim(),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: descColor,
+                    height: 1.38,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+
+    void onTap() {
+      _markAsRead(item);
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => NotificationDetailPage(item: item),
+        ),
+      );
+    }
+
+    if (!isWide) {
+      return Material(
+        color: cardBg,
+        child: InkWell(
+          onTap: onTap,
+          child: content,
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: isDark
+            ? Border.all(
+                color: isRead
+                    ? theme.dividerColor.withValues(alpha: 0.16)
+                    : accentBlue.withValues(alpha: 0.32),
+              )
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A)
+                .withValues(alpha: isDark ? 0.2 : 0.045),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: content,
         ),
       ),
     );
