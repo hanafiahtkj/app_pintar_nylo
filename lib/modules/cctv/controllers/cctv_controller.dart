@@ -74,6 +74,8 @@ class CctvController extends ChangeNotifier {
   int _probeEpoch = 0;
   bool _disposed = false;
   Timer? _statusPollTimer;
+  Timer? _initialProbeTimer;
+  Timer? _probeNotifyTimer;
 
   /// Incremented whenever wilayah filters change so the map can fit bounds.
   int _mapFocusVersion = 0;
@@ -393,7 +395,14 @@ class CctvController extends ChangeNotifier {
       _notify();
 
       _startStatusPolling();
-      unawaited(checkAlive(forceRefresh: forceRefresh));
+      // Give the active video stream a short head start before probing all
+      // other cameras so they don't compete for bandwidth/sockets on startup.
+      _initialProbeTimer?.cancel();
+      _initialProbeTimer = Timer(const Duration(milliseconds: 1500), () {
+        if (!_disposed) {
+          unawaited(checkAlive(forceRefresh: forceRefresh));
+        }
+      });
     } catch (e) {
       if (_disposed) return;
       _isLoadingInitial = false;
@@ -463,21 +472,37 @@ class CctvController extends ChangeNotifier {
     _isCheckingAlive = true;
     _notify();
 
+    var hasPendingNotify = false;
+    void scheduleBatchedNotify() {
+      hasPendingNotify = true;
+      if (_probeNotifyTimer?.isActive ?? false) return;
+      _probeNotifyTimer = Timer(const Duration(milliseconds: 400), () {
+        if (!_disposed && currentEpoch == _probeEpoch && hasPendingNotify) {
+          hasPendingNotify = false;
+          _notify();
+        }
+      });
+    }
+
     try {
       await _api.probeHlsStreams(
         _cameras,
+        concurrency: 4,
         isCancelled: () => _disposed || currentEpoch != _probeEpoch,
         onProgress: (cameraId, isOnline) {
           if (_disposed || currentEpoch != _probeEpoch) return;
           // Do not overwrite a camera that is actively playing in the player
           if (!isOnline && cameraId == _playingLiveCameraId) return;
+          if (_aliveStatus[cameraId] == isOnline) return;
           _aliveStatus[cameraId] = isOnline;
-          _notify();
+          scheduleBatchedNotify();
         },
       );
       if (_disposed || currentEpoch != _probeEpoch) return;
       _lastCheckedAt = DateTime.now();
     } finally {
+      _probeNotifyTimer?.cancel();
+      _probeNotifyTimer = null;
       if (!_disposed && currentEpoch == _probeEpoch) {
         _isCheckingAlive = false;
         _notify();
@@ -613,6 +638,8 @@ class CctvController extends ChangeNotifier {
     _disposed = true;
     _probeEpoch++;
     _statusPollTimer?.cancel();
+    _initialProbeTimer?.cancel();
+    _probeNotifyTimer?.cancel();
     super.dispose();
   }
 }

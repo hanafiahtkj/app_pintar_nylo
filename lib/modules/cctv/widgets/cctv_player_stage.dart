@@ -18,6 +18,11 @@ class CctvPlayerStage extends StatefulWidget {
   /// aspect ratio with rounded corners instead of clamping mobile height.
   final bool isDesktopStage;
 
+  /// When `false` (e.g. another route with its own inline player is on top),
+  /// the player releases its active [VideoPlayerController] so two streams do
+  /// not decode and compete for bandwidth/CPU simultaneously.
+  final bool isActive;
+
   const CctvPlayerStage({
     super.key,
     required this.camera,
@@ -25,6 +30,7 @@ class CctvPlayerStage extends StatefulWidget {
     required this.onStreamReady,
     required this.onStreamError,
     this.isDesktopStage = false,
+    this.isActive = true,
   });
 
   @override
@@ -42,6 +48,10 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
   bool _inFullscreen = false;
   int _loadEpoch = 0;
   Timer? _hideControlsTimer;
+  bool _lastIsBuffering = false;
+  bool _lastIsPlaying = false;
+  bool _lastIsInitialized = false;
+  double _lastAspectRatio = 0;
 
   late final AnimationController _pulseController;
 
@@ -54,7 +64,7 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
 
-    if (widget.camera != null) {
+    if (widget.isActive && widget.camera != null) {
       unawaited(_loadCamera(widget.camera!));
     }
   }
@@ -62,6 +72,28 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
   @override
   void didUpdateWidget(covariant CctvPlayerStage oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    if (!widget.isActive && oldWidget.isActive) {
+      _loadEpoch++;
+      _hideControlsTimer?.cancel();
+      _streamState = _StreamState.idle;
+      _errorMsg = null;
+      _showControls = false;
+      unawaited(_disposeController());
+      return;
+    }
+
+    if (widget.isActive && !oldWidget.isActive) {
+      if (widget.camera != null) {
+        unawaited(_loadCamera(widget.camera!));
+      } else {
+        unawaited(_disposeController());
+      }
+      return;
+    }
+
+    if (!widget.isActive) return;
+
     if (widget.camera?.id != oldWidget.camera?.id ||
         widget.camera?.videoUrl != oldWidget.camera?.videoUrl) {
       if (widget.camera != null) {
@@ -139,8 +171,10 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
     if (!mounted || epoch != _loadEpoch) return;
 
     final origin = AppConfig.cctvApiBaseUrl.replaceAll(RegExp(r'/+$'), '');
+    final isHls = url.toLowerCase().contains('.m3u8');
     final controller = VideoPlayerController.networkUrl(
       Uri.parse(url),
+      formatHint: isHls ? VideoFormat.hls : null,
       httpHeaders: {
         'Origin': origin,
         'Referer': '$origin/',
@@ -156,6 +190,10 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
       }
 
       await controller.setVolume(_isMuted ? 0.0 : 1.0);
+      _lastIsBuffering = controller.value.isBuffering;
+      _lastIsPlaying = controller.value.isPlaying;
+      _lastIsInitialized = controller.value.isInitialized;
+      _lastAspectRatio = controller.value.aspectRatio;
       controller.addListener(_onVideoUpdate);
       _videoController = controller;
       await controller.play();
@@ -199,7 +237,17 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
       return;
     }
     if (!_inFullscreen) {
-      setState(() {});
+      final val = controller.value;
+      if (val.isBuffering != _lastIsBuffering ||
+          val.isPlaying != _lastIsPlaying ||
+          val.isInitialized != _lastIsInitialized ||
+          val.aspectRatio != _lastAspectRatio) {
+        _lastIsBuffering = val.isBuffering;
+        _lastIsPlaying = val.isPlaying;
+        _lastIsInitialized = val.isInitialized;
+        _lastAspectRatio = val.aspectRatio;
+        setState(() {});
+      }
     }
   }
 

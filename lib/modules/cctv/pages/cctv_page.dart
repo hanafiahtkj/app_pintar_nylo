@@ -31,6 +31,7 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
   final MapController _mapController = MapController();
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _distributionSectionKey = GlobalKey();
+  bool _isFullscreenMapOpen = false;
 
   @override
   LoadingStyle get loadingStyle => LoadingStyle.none();
@@ -116,11 +117,18 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
   }
 
   Future<void> _openFullscreenMap() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => CctvFullscreenMapPage(controller: _controller),
-      ),
-    );
+    setState(() => _isFullscreenMapOpen = true);
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => CctvFullscreenMapPage(controller: _controller),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isFullscreenMapOpen = false);
+      }
+    }
   }
 
   @override
@@ -246,6 +254,7 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
             onStreamReady: _controller.markCameraLive,
             onStreamError: _controller.handleStreamError,
             isDesktopStage: false,
+            isActive: !_isFullscreenMapOpen,
           ),
 
         // Full-bleed soft sections on phones (<600px), soft cards on tablets
@@ -305,6 +314,7 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
                           onStreamReady: _controller.markCameraLive,
                           onStreamError: _controller.handleStreamError,
                           isDesktopStage: true,
+                          isActive: !_isFullscreenMapOpen,
                         ),
                       ),
                       const SizedBox(width: 20),
