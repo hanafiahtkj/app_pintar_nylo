@@ -286,103 +286,132 @@ class _EmergencyPageState extends NyPage<EmergencyPage> {
       onRefresh: _fetchEmergencies,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= 768;
-          final horizontalPad = isWide ? 24.0 : 12.0;
+          final cols = _resolveColumns(constraints.maxWidth);
+          final isWide = cols > 1;
 
-          return CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1120),
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        horizontalPad,
-                        14,
-                        horizontalPad,
-                        24,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
-                            ),
-                            margin: const EdgeInsets.only(bottom: 14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFDC2626)
-                                  .withValues(alpha: isDark ? 0.16 : 0.06),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFFDC2626)
-                                    .withValues(alpha: 0.18),
+          if (!isWide) {
+            final dividerColor = theme.dividerColor.withValues(
+              alpha: isDark ? 0.18 : 0.12,
+            );
+            return ColoredBox(
+              color: isDark ? theme.scaffoldBackgroundColor : Colors.white,
+              child: ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 24),
+                itemCount: items.length,
+                separatorBuilder: (_, __) => Divider(
+                  height: 1,
+                  thickness: 0.8,
+                  color: dividerColor,
+                ),
+                itemBuilder: (context, index) {
+                  return _buildMobileRow(items[index]);
+                },
+              ),
+            );
+          }
+
+          return ColoredBox(
+            color:
+                isDark ? theme.scaffoldBackgroundColor : const Color(0xFFF6F8FB),
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1120),
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
+                        child: LayoutBuilder(
+                          builder: (context, innerConstraints) {
+                            final gridCols =
+                                _resolveColumns(innerConstraints.maxWidth);
+                            return GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: items.length,
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: gridCols,
+                                mainAxisSpacing: 14,
+                                crossAxisSpacing: 14,
+                                mainAxisExtent: 112,
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.info_outline_rounded,
-                                  size: 18,
-                                  color: Color(0xFFDC2626),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Ketuk kartu layanan untuk langsung membuka panggilan telepon.',
-                                    style: theme.textTheme.labelSmall?.copyWith(
-                                      color: isDark
-                                          ? Colors.red.shade200
-                                          : const Color(0xFF991B1B),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          LayoutBuilder(
-                            builder: (context, innerConstraints) {
-                              final cols =
-                                  _resolveColumns(innerConstraints.maxWidth);
-                              const spacing = 12.0;
-                              final itemWidth = cols == 1
-                                  ? innerConstraints.maxWidth
-                                  : (innerConstraints.maxWidth -
-                                          spacing * (cols - 1)) /
-                                      cols;
-
-                              return Wrap(
-                                spacing: spacing,
-                                runSpacing: spacing,
-                                children: items
-                                    .map(
-                                      (item) => _buildListItem(
-                                        item,
-                                        itemWidth: itemWidth,
-                                      ),
-                                    )
-                                    .toList(),
-                              );
-                            },
-                          ),
-                        ],
+                              itemBuilder: (context, index) {
+                                return _buildSoftCard(items[index]);
+                              },
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
     );
   }
 
-  Widget _buildListItem(EmergencyItem item, {required double itemWidth}) {
+  Widget _buildMobileRow(EmergencyItem item) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Material(
+      color: isDark ? theme.scaffoldBackgroundColor : Colors.white,
+      child: InkWell(
+        onTap: () => _makeCall(item.number),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 102),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: _buildItemContent(item),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSoftCard(EmergencyItem item) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? theme.cardColor : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: isDark
+            ? Border.all(color: theme.dividerColor.withValues(alpha: 0.16))
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A)
+                .withValues(alpha: isDark ? 0.22 : 0.045),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _makeCall(item.number),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: _buildItemContent(item),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItemContent(EmergencyItem item) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final Color itemColor = _parseColor(item.color);
@@ -396,106 +425,80 @@ class _EmergencyPageState extends NyPage<EmergencyPage> {
           item.fontFamily.isNotEmpty ? item.fontFamily : 'MaterialIcons',
     );
 
-    return SizedBox(
-      width: itemWidth,
-      child: Material(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: () => _makeCall(item.number),
-          borderRadius: BorderRadius.circular(14),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: theme.dividerColor.withValues(
-                  alpha: isDark ? 0.22 : 0.14,
-                ),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.16 : 0.03),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                CircleAvatar(
-                  radius: 23,
-                  backgroundColor: itemColor.withValues(alpha: 0.12),
-                  child: Icon(
-                    itemIcon,
-                    color: itemColor,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.name,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14.5,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        item.number,
-                        style: TextStyle(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w700,
-                          color: isDark
-                              ? const Color(0xFFFCA5A5)
-                              : const Color(0xFFDC2626),
-                        ),
-                      ),
-                      if (item.description.trim().isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          item.description,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontSize: 12,
-                            color: isDark
-                                ? Colors.grey.shade400
-                                : const Color(0xFF64748B),
-                            height: 1.3,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF16A34A)
-                        .withValues(alpha: isDark ? 0.2 : 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.call_rounded,
-                    color: Color(0xFF16A34A),
-                    size: 20,
-                  ),
-                ),
-              ],
-            ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        CircleAvatar(
+          radius: 23,
+          backgroundColor: itemColor.withValues(alpha: 0.12),
+          child: Icon(
+            itemIcon,
+            color: itemColor,
+            size: 22,
           ),
         ),
-      ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.name,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14.5,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                item.number,
+                style: TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w700,
+                  color: isDark
+                      ? const Color(0xFFFCA5A5)
+                      : const Color(0xFFDC2626),
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (item.description.trim().isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  item.description,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontSize: 12,
+                    color: isDark
+                        ? Colors.grey.shade400
+                        : const Color(0xFF64748B),
+                    height: 1.3,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: const Color(0xFF16A34A)
+                .withValues(alpha: isDark ? 0.2 : 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.call_rounded,
+            color: Color(0xFF16A34A),
+            size: 20,
+          ),
+        ),
+      ],
     );
   }
 }

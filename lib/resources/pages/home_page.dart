@@ -1089,7 +1089,10 @@ class _HomePageState extends NyPage<HomePage> {
         SliverToBoxAdapter(
           child: Stack(
             children: [
-              _buildBackgroundImage(isWide: isWide),
+              Positioned.fill(
+                bottom: 82,
+                child: _buildBackgroundImage(),
+              ),
               Center(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
@@ -1343,15 +1346,13 @@ class _HomePageState extends NyPage<HomePage> {
     );
   }
 
-  Widget _buildBackgroundImage({required bool isWide}) {
-    final topInset = MediaQuery.paddingOf(context).top;
+  Widget _buildBackgroundImage() {
     return ClipRRect(
       borderRadius: const BorderRadius.only(
         bottomLeft: Radius.circular(28),
         bottomRight: Radius.circular(28),
       ),
       child: Container(
-        height: (isWide ? 280 : 292) + topInset,
         decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/images/BG.png'),
