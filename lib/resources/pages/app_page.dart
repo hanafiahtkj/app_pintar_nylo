@@ -65,7 +65,7 @@ class _AppPageState extends NyPage<AppPage> {
         },
         child: Scaffold(
           backgroundColor:
-              isDark ? theme.scaffoldBackgroundColor : const Color(0xFFF6F8FB),
+              isDark ? theme.scaffoldBackgroundColor : const Color(0xFFFAFBFE),
           appBar: _buildAppBar(context),
           body: _buildBody(context),
         ),

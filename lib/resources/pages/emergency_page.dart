@@ -313,7 +313,7 @@ class _EmergencyPageState extends NyPage<EmergencyPage> {
 
           return ColoredBox(
             color:
-                isDark ? theme.scaffoldBackgroundColor : const Color(0xFFF6F8FB),
+                isDark ? theme.scaffoldBackgroundColor : const Color(0xFFFAFBFE),
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [

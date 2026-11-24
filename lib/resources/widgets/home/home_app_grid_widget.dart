@@ -182,7 +182,7 @@ class _HomeAppGridWidgetState extends NyState<HomeAppGridWidget> {
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 8.0),
               decoration: BoxDecoration(
-                color: isDark ? theme.cardColor : const Color(0xFFF4F6FA),
+                color: isDark ? theme.cardColor : Colors.white,
                 borderRadius: BorderRadius.circular(18),
                 border: isDark
                     ? Border.all(
@@ -192,8 +192,8 @@ class _HomeAppGridWidgetState extends NyState<HomeAppGridWidget> {
                 boxShadow: [
                   BoxShadow(
                     color: const Color(0xFF0F172A)
-                        .withValues(alpha: isDark ? 0.22 : 0.03),
-                    blurRadius: 10,
+                        .withValues(alpha: isDark ? 0.22 : 0.055),
+                    blurRadius: 12,
                     offset: const Offset(0, 3),
                   ),
                 ],
@@ -205,8 +205,6 @@ class _HomeAppGridWidgetState extends NyState<HomeAppGridWidget> {
                   child: Image.asset(
                     'assets/icons/semua_layanan.png',
                     fit: BoxFit.cover,
-                    color: isDark ? null : const Color(0xFFF4F6FA),
-                    colorBlendMode: isDark ? null : BlendMode.multiply,
                     errorBuilder: (_, __, ___) => Icon(
                       Icons.grid_view_rounded,
                       color: accent,
@@ -283,7 +281,7 @@ class _HomeAppGridWidgetState extends NyState<HomeAppGridWidget> {
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 8.0),
               decoration: BoxDecoration(
-                color: isDark ? theme.cardColor : const Color(0xFFF4F6FA),
+                color: isDark ? theme.cardColor : Colors.white,
                 borderRadius: BorderRadius.circular(18),
                 border: isDark
                     ? Border.all(
@@ -293,8 +291,8 @@ class _HomeAppGridWidgetState extends NyState<HomeAppGridWidget> {
                 boxShadow: [
                   BoxShadow(
                     color: const Color(0xFF0F172A)
-                        .withValues(alpha: isDark ? 0.22 : 0.03),
-                    blurRadius: 10,
+                        .withValues(alpha: isDark ? 0.22 : 0.055),
+                    blurRadius: 12,
                     offset: const Offset(0, 3),
                   ),
                 ],
@@ -303,14 +301,25 @@ class _HomeAppGridWidgetState extends NyState<HomeAppGridWidget> {
                 borderRadius: BorderRadius.circular(18),
                 child: AspectRatio(
                   aspectRatio: 1.0,
-                  child: CachedNetworkImage(
-                    imageUrl: '${AppConfig.apiBaseUrl}/storage/${app.path}',
-                    fit: BoxFit.cover,
-                    color: isDark ? null : const Color(0xFFF4F6FA),
-                    colorBlendMode: isDark ? null : BlendMode.multiply,
-                    errorWidget: (context, url, error) => const Icon(
-                      Icons.broken_image_outlined,
-                      color: Colors.grey,
+                  child: ColorFiltered(
+                    colorFilter: isDark
+                        ? const ColorFilter.mode(
+                            Colors.transparent,
+                            BlendMode.dst,
+                          )
+                        : const ColorFilter.matrix(<double>[
+                            1.09, 0, 0, 0, 0,
+                            0, 1.09, 0, 0, 0,
+                            0, 0, 1.09, 0, 0,
+                            0, 0, 0, 1, 0,
+                          ]),
+                    child: CachedNetworkImage(
+                      imageUrl: '${AppConfig.apiBaseUrl}/storage/${app.path}',
+                      fit: BoxFit.cover,
+                      errorWidget: (context, url, error) => const Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.grey,
+                      ),
                     ),
                   ),
                 ),

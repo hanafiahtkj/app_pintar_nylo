@@ -489,7 +489,7 @@ class _HomePageState extends NyPage<HomePage> {
     final activeColor =
         isDark ? const Color(0xFF6EA8FE) : const Color(0xFF1455D4);
     final inactiveColor =
-        isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
+        isDark ? Colors.grey.shade200 : const Color(0xFF334155);
     final borderColor =
         theme.dividerColor.withValues(alpha: isDark ? 0.2 : 0.14);
 
@@ -711,8 +711,8 @@ class _HomePageState extends NyPage<HomePage> {
                   child: Text(
                     label,
                     style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 14,
+                      fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
                       color: isActive ? activeColor : inactiveColor,
                     ),
                     overflow: TextOverflow.ellipsis,

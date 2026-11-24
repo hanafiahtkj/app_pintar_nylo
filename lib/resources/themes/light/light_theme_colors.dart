@@ -5,16 +5,16 @@ import 'package:nylo_framework/nylo_framework.dart';
 class LightThemeColors extends ColorStyles {
   @override
   GeneralColors get general => const GeneralColors(
-        background: Color(0xFFFAFBFB),
+        background: Colors.white,
         content: Color(0xFF241E30),
         primaryAccent: Color(0xFFd21e1d),
-        surface: Color(0xFFFAFBFB),
+        surface: Colors.white,
         surfaceContent: Color(0xFF241E30),
       );
 
   @override
   AppBarColors get appBar => const AppBarColors(
-        background: Color(0xFFFAFBFB),
+        background: Colors.white,
         content: Color(0xFF241E30),
       );
 

@@ -114,7 +114,7 @@ class _CategoryPageState extends NyPage<CategoryPage> {
                   child: ColoredBox(
                     color: isDark
                         ? theme.scaffoldBackgroundColor
-                        : const Color(0xFFF6F8FB),
+                        : const Color(0xFFFAFBFE),
                     child: TabBarView(
                       children: [
                         _KeepAliveTab(
