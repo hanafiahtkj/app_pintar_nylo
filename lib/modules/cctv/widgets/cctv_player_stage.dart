@@ -50,6 +50,21 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
   static VideoController? _sharedVideoController;
   static Future<Player>? _sharedInitFuture;
   static _CctvPlayerStageState? _activeOwner;
+  static bool _lifecycleObserverAttached = false;
+
+  static void _disposeSharedPlayer() {
+    final shared = _sharedPlayer;
+    _sharedPlayer = null;
+    _sharedVideoController = null;
+    _activeOwner = null;
+    if (shared != null) {
+      final platform = shared.platform;
+      if (platform is NativePlayer) {
+        unawaited(platform.setProperty('vo', 'null'));
+      }
+      unawaited(shared.dispose());
+    }
+  }
 
   Player? _player;
   VideoController? _videoController;
@@ -254,6 +269,10 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
 
       _sharedPlayer = player;
       _sharedVideoController = videoController;
+      if (!_lifecycleObserverAttached) {
+        _lifecycleObserverAttached = true;
+        WidgetsBinding.instance.addObserver(_SharedPlayerLifecycleObserver());
+      }
       return player;
     }();
 
@@ -866,5 +885,15 @@ class _LiveStatusBadge extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+
+class _SharedPlayerLifecycleObserver with WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      _CctvPlayerStageState._disposeSharedPlayer();
+    }
   }
 }
