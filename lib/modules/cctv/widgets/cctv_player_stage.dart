@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -179,18 +181,28 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
 
     final platform = player.platform;
     if (platform is NativePlayer) {
-      await platform.setProperty('profile', 'low-latency');
-      await platform.setProperty('cache', 'no');
-      await platform.setProperty('demuxer-lavf-probesize', '32768');
-      await platform.setProperty('demuxer-lavf-analyzeduration', '0.5');
+      await platform.setProperty('cache', 'yes');
+      await platform.setProperty('demuxer-readahead-secs', '1');
+      await platform.setProperty('cache-secs', '2');
       await platform.setProperty('network-timeout', '10');
       await platform.setProperty('hls-bitrate', 'max');
       await platform.setProperty('demuxer-lavf-o', 'live_start_index=-1');
     }
 
-    final videoController = VideoController(player);
+    final videoController = VideoController(
+      player,
+      configuration: !kIsWeb && Platform.isAndroid
+          ? const VideoControllerConfiguration(
+              vo: 'mediacodec_embed',
+              hwdec: 'mediacodec',
+            )
+          : const VideoControllerConfiguration(),
+    );
     _player = player;
     _videoController = videoController;
+    if (mounted) {
+      setState(() {});
+    }
 
     _playerSubs.add(
       player.stream.playing.listen((playing) {
@@ -344,6 +356,14 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
       if (!mounted || epoch != _loadEpoch) return;
       _awaitingOpen = false;
       _initialPosAfterOpen = player.state.position;
+      if ((player.state.width ?? 0) > 0 &&
+          player.state.playing &&
+          !player.state.buffering) {
+        _hasVideoFrame = true;
+        _isPlaying = true;
+        _isBuffering = false;
+        _checkStreamReady();
+      }
     } catch (_) {
       _handleLoadFailure(
         epoch,
