@@ -42,6 +42,15 @@ class CctvPlayerStage extends StatefulWidget {
 
 class _CctvPlayerStageState extends State<CctvPlayerStage>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  /// Single warm libmpv Player + VideoController shared across CCTV route
+  /// transitions (CCTV -> Back -> CCTV and Fullscreen Map) to prevent Android
+  /// MediaCodec / VideoOutputManager dispose-recreate deadlocks and make
+  /// reopening CCTV instantaneous.
+  static Player? _sharedPlayer;
+  static VideoController? _sharedVideoController;
+  static Future<Player>? _sharedInitFuture;
+  static _CctvPlayerStageState? _activeOwner;
+
   Player? _player;
   VideoController? _videoController;
   final List<StreamSubscription<dynamic>> _playerSubs = [];
@@ -95,7 +104,14 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
       _streamState = _StreamState.idle;
       _errorMsg = null;
       _showControls = false;
-      unawaited(_player?.stop());
+      if (_activeOwner == this) {
+        _activeOwner = null;
+        final player = _sharedPlayer;
+        if (player != null) {
+          unawaited(player.pause());
+          unawaited(player.open(const Playlist([]), play: false));
+        }
+      }
       return;
     }
 
@@ -103,7 +119,8 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
       if (widget.camera != null) {
         unawaited(_loadCamera(widget.camera!));
       } else {
-        unawaited(_player?.stop());
+        unawaited(_player?.pause());
+      unawaited(_player?.open(const Playlist([]), play: false));
       }
       return;
     }
@@ -117,7 +134,8 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
       } else {
         _loadEpoch++;
         _loadTimeoutTimer?.cancel();
-        unawaited(_player?.stop());
+        unawaited(_player?.pause());
+      unawaited(_player?.open(const Playlist([]), play: false));
       }
     }
   }
@@ -150,110 +168,176 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
       unawaited(sub.cancel());
     }
     _playerSubs.clear();
-    final player = _player;
+    final isOwner = _activeOwner == this;
+    if (isOwner) {
+      _activeOwner = null;
+    }
     _player = null;
     _videoController = null;
-    if (player != null) {
-      unawaited(player.dispose());
+    if (isOwner) {
+      final player = _sharedPlayer;
+      if (player != null) {
+        // Pause & clear media immediately without tearing down native libmpv/MediaCodec
+        unawaited(player.pause());
+        unawaited(player.open(const Playlist([]), play: false));
+      }
     }
     super.dispose();
   }
 
-  Future<Player> _ensurePlayer() async {
-    final existing = _player;
-    if (existing != null) return existing;
-
-    final player = Player(
-      configuration: const PlayerConfiguration(
-        bufferSize: 4 * 1024 * 1024,
-        protocolWhitelist: [
-          'http',
-          'https',
-          'tcp',
-          'tls',
-          'crypto',
-          'hls',
-          'file',
-          'data',
-        ],
-      ),
-    );
-
-    final platform = player.platform;
-    if (platform is NativePlayer) {
-      await platform.setProperty('cache', 'yes');
-      await platform.setProperty('demuxer-readahead-secs', '1');
-      await platform.setProperty('cache-secs', '2');
-      await platform.setProperty('network-timeout', '10');
-      await platform.setProperty('hls-bitrate', 'max');
-      await platform.setProperty('demuxer-lavf-o', 'live_start_index=-1');
+  static bool _isFatalStreamError(String rawError) {
+    final lower = rawError.toLowerCase();
+    // Ignore transient libmpv / mediacodec_embed surface-attach & live-seek warnings
+    if (lower.contains('seek') ||
+        lower.contains('could not open codec') ||
+        lower.contains('audio') ||
+        lower.contains('vo')) {
+      return false;
     }
+    return lower.contains('404') ||
+        lower.contains('403') ||
+        lower.contains('401') ||
+        lower.contains('500') ||
+        lower.contains('502') ||
+        lower.contains('503') ||
+        lower.contains('connection refused') ||
+        lower.contains('name or service not known') ||
+        lower.contains('no address associated') ||
+        lower.contains('timed out') ||
+        lower.contains('failed to open');
+  }
 
-    final videoController = VideoController(
-      player,
-      configuration: !kIsWeb && Platform.isAndroid
-          ? const VideoControllerConfiguration(
-              vo: 'mediacodec_embed',
-              hwdec: 'mediacodec',
-            )
-          : const VideoControllerConfiguration(),
-    );
+  static Future<Player> _getOrCreateSharedPlayer() {
+    final existing = _sharedPlayer;
+    if (existing != null && _sharedVideoController != null) {
+      return Future<Player>.value(existing);
+    }
+    final inFlight = _sharedInitFuture;
+    if (inFlight != null) return inFlight;
+
+    final future = () async {
+      final player = Player(
+        configuration: const PlayerConfiguration(
+          bufferSize: 4 * 1024 * 1024,
+          protocolWhitelist: [
+            'http',
+            'https',
+            'tcp',
+            'tls',
+            'crypto',
+            'hls',
+            'file',
+            'data',
+          ],
+        ),
+      );
+
+      final platform = player.platform;
+      if (platform is NativePlayer) {
+        await platform.setProperty('cache', 'yes');
+        await platform.setProperty('demuxer-readahead-secs', '1');
+        await platform.setProperty('cache-secs', '2');
+        await platform.setProperty('network-timeout', '10');
+        await platform.setProperty('hls-bitrate', 'max');
+        await platform.setProperty('demuxer-lavf-o', 'live_start_index=-1');
+      }
+
+      final videoController = VideoController(
+        player,
+        configuration: !kIsWeb && Platform.isAndroid
+            ? const VideoControllerConfiguration(
+                vo: 'mediacodec_embed',
+                hwdec: 'mediacodec',
+              )
+            : const VideoControllerConfiguration(),
+      );
+
+      _sharedPlayer = player;
+      _sharedVideoController = videoController;
+      return player;
+    }();
+
+    _sharedInitFuture = future;
+    future.whenComplete(() {
+      if (_sharedInitFuture == future) {
+        _sharedInitFuture = null;
+      }
+    });
+    return future;
+  }
+
+  Future<Player> _ensurePlayer() async {
+    _activeOwner = this;
+    final existing = _player;
+    if (existing != null && _videoController != null) return existing;
+
+    final player = await _getOrCreateSharedPlayer();
+    if (!mounted) return player;
+
     _player = player;
-    _videoController = videoController;
+    _videoController = _sharedVideoController;
     if (mounted) {
       setState(() {});
     }
 
-    _playerSubs.add(
-      player.stream.playing.listen((playing) {
-        if (!mounted || !widget.isActive) return;
-        if (_isPlaying == playing) return;
-        _isPlaying = playing;
-        _checkStreamReady();
-        if (!_inFullscreen) setState(() {});
-      }),
-    );
-
-    _playerSubs.add(
-      player.stream.buffering.listen((buffering) {
-        if (!mounted || !widget.isActive) return;
-        if (_isBuffering == buffering) return;
-        _isBuffering = buffering;
-        _checkStreamReady();
-        if (!_inFullscreen) setState(() {});
-      }),
-    );
-
-    _playerSubs.add(
-      player.stream.position.listen((position) {
-        if (!mounted || !widget.isActive) return;
-        if (_awaitingOpen || _readyReported) return;
-        if (_initialPosAfterOpen == null) {
-          _initialPosAfterOpen = position;
-          return;
-        }
-        if (position != _initialPosAfterOpen &&
-            position > Duration.zero &&
-            (player.state.width ?? 0) > 0) {
-          _hasVideoFrame = true;
+    if (_playerSubs.isEmpty) {
+      _playerSubs.add(
+        player.stream.playing.listen((playing) {
+          if (!mounted || !widget.isActive || _activeOwner != this) return;
+          if (_isPlaying == playing) return;
+          _isPlaying = playing;
           _checkStreamReady();
-        }
-      }),
-    );
+          if (!_inFullscreen) setState(() {});
+        }),
+      );
 
-    _playerSubs.add(
-      player.stream.error.listen((error) {
-        if (!mounted || !widget.isActive || error.isEmpty) return;
-        // Ignore non-fatal warnings once already actively playing with frames
-        if (_streamState == _StreamState.playing && _isPlaying && !_isBuffering) {
-          return;
-        }
-        _handleLoadFailure(
-          _loadEpoch,
-          'Siaran terputus karena gangguan jaringan atau kamera sedang offline.',
-        );
-      }),
-    );
+      _playerSubs.add(
+        player.stream.buffering.listen((buffering) {
+          if (!mounted || !widget.isActive || _activeOwner != this) return;
+          if (_isBuffering == buffering) return;
+          _isBuffering = buffering;
+          _checkStreamReady();
+          if (!_inFullscreen) setState(() {});
+        }),
+      );
+
+      _playerSubs.add(
+        player.stream.position.listen((position) {
+          if (!mounted || !widget.isActive || _activeOwner != this) return;
+          if (_awaitingOpen || _readyReported) return;
+          if (_initialPosAfterOpen == null) {
+            _initialPosAfterOpen = position;
+            return;
+          }
+          if (position != _initialPosAfterOpen &&
+              position > Duration.zero &&
+              (player.state.width ?? 0) > 0) {
+            _hasVideoFrame = true;
+            _checkStreamReady();
+          }
+        }),
+      );
+
+      _playerSubs.add(
+        player.stream.error.listen((error) {
+          if (!mounted || !widget.isActive || _activeOwner != this || error.isEmpty) {
+            return;
+          }
+          // Ignore non-fatal warnings once already actively playing with frames
+          if (_streamState == _StreamState.playing && _isPlaying && !_isBuffering) {
+            return;
+          }
+          // Only abort immediately on genuine fatal network/HTTP errors;
+          // transient libmpv/mediacodec_embed warnings during surface attach
+          // should not kill a healthy stream (timeout handles truly dead streams).
+          if (!_isFatalStreamError(error)) return;
+          _handleLoadFailure(
+            _loadEpoch,
+            'Siaran terputus karena gangguan jaringan atau kamera sedang offline.',
+          );
+        }),
+      );
+    }
 
     return player;
   }
@@ -307,7 +391,8 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
 
     final url = camera.videoUrl?.trim();
     if (url == null || url.isEmpty) {
-      unawaited(_player?.stop());
+      unawaited(_player?.pause());
+      unawaited(_player?.open(const Playlist([]), play: false));
       await Future<void>.microtask(() {});
       if (!mounted || epoch != _loadEpoch) return;
       final advanced = widget.onStreamError();
@@ -327,7 +412,8 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
 
     _loadTimeoutTimer = Timer(const Duration(seconds: 12), () {
       if (!mounted || epoch != _loadEpoch || _readyReported) return;
-      unawaited(_player?.stop());
+      unawaited(_player?.pause());
+      unawaited(_player?.open(const Playlist([]), play: false));
       _handleLoadFailure(
         epoch,
         'Siaran gagal dimuat karena gangguan jaringan atau kamera sedang offline.',
