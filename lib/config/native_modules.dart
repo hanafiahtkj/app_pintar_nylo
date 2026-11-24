@@ -1,3 +1,4 @@
+import '/modules/cctv/cctv_module.dart';
 import '/modules/native_service_module.dart';
 
 /// Daftar terpusat seluruh modul layanan native yang sudah tersedia di versi
@@ -10,6 +11,5 @@ import '/modules/native_service_module.dart';
 /// 3. Aktifkan `is_native = 1` di backend untuk `slug` layanan tersebut saat
 ///    siap rilis.
 final List<NativeServiceModule> nativeServiceModules = <NativeServiceModule>[
-  // Contoh:
-  // CctvModule(),
+  CctvModule(),
 ];

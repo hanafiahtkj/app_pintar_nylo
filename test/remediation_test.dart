@@ -7,6 +7,7 @@ import 'package:app_pintar_nylo/app/models/notification_page_response.dart';
 import 'package:app_pintar_nylo/app/services/native_service_registry.dart';
 import 'package:app_pintar_nylo/app/services/pending_app_service.dart';
 import 'package:app_pintar_nylo/app/services/service_launcher_service.dart';
+import 'package:app_pintar_nylo/modules/cctv/pages/cctv_page.dart';
 import 'package:app_pintar_nylo/modules/native_service_module.dart';
 import 'package:app_pintar_nylo/bootstrap/env.g.dart';
 import 'package:app_pintar_nylo/bootstrap/providers.dart';
@@ -230,7 +231,30 @@ void main() {
         PendingApp(slug: 'demo-native', nama: 'Demo', isNative: true).toJson(),
       );
       expect(pending.isNative, isTrue);
+
+      // CctvModule terdaftar otomatis dari native_modules.dart
+      expect(NativeServiceRegistry().hasModule('cctv'), isTrue);
+      expect(
+        ServiceLauncherService.shouldOpenNative(
+          LayananApp.fromJson({'slug': 'cctv', 'is_native': 1}),
+        ),
+        isTrue,
+      );
+      expect(
+        ServiceLauncherService.shouldOpenNative(
+          LayananApp.fromJson({'slug': 'cctv', 'is_native': 0}),
+        ),
+        isFalse,
+      );
     });
+  });
+
+  nyWidgetTest('CctvPage renders cleanly with native CCTV interface',
+      (tester) async {
+    await tester.pumpNyWidgetSimple(CctvPage());
+    await tester.pump();
+    expect(find.byType(Scaffold), findsOneWidget);
+    expect(find.text('Pemantauan CCTV'), findsOneWidget);
   });
 }
 

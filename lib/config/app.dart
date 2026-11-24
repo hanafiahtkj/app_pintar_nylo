@@ -18,6 +18,12 @@ final class AppConfig {
   static final String karierApiBaseUrl = getEnv('KARIER_API_BASE_URL',
       defaultValue: 'https://karier.banjarmasinkota.go.id');
 
+  static final String cctvApiBaseUrl = getEnv('CCTV_API_BASE_URL',
+      defaultValue: 'https://cctv.banjarmasinkota.go.id');
+
+  static final String cctvApiToken =
+      getEnv('CCTV_API_TOKEN', defaultValue: '');
+
   static final String ssoRegisUrl = getEnv('SSO_REGIS_URL',
       defaultValue: 'https://pintar.banjarmasinkota.go.id/regis');
 
