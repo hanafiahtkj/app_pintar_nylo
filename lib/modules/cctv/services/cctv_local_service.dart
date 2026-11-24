@@ -2,7 +2,6 @@ import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '/modules/cctv/models/cctv_camera.dart';
 
@@ -17,48 +16,6 @@ class CctvCoordinates {
 }
 
 class CctvLocalService {
-  static const String _favoritesKey = 'cctv_favorite_ids_v1';
-  static const String _recentsKey = 'cctv_recent_ids_v1';
-  static const int maxRecents = 5;
-
-  Future<Set<String>> loadFavorites() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final list = prefs.getStringList(_favoritesKey) ?? const <String>[];
-      return list.where((e) => e.trim().isNotEmpty).toSet();
-    } catch (_) {
-      return <String>{};
-    }
-  }
-
-  Future<void> saveFavorites(Set<String> ids) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(_favoritesKey, ids.toList());
-    } catch (_) {
-      // Ignore storage failures gracefully.
-    }
-  }
-
-  Future<List<String>> loadRecents() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final list = prefs.getStringList(_recentsKey) ?? const <String>[];
-      return list.where((e) => e.trim().isNotEmpty).take(maxRecents).toList();
-    } catch (_) {
-      return <String>[];
-    }
-  }
-
-  Future<void> saveRecents(List<String> ids) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(_recentsKey, ids.take(maxRecents).toList());
-    } catch (_) {
-      // Ignore storage failures gracefully.
-    }
-  }
-
   /// Attempts to retrieve the user's current location with a bounded timeout.
   /// Returns `null` safely if location services are disabled, permission is
   /// denied, or a timeout occurs (so the app seamlessly falls back).

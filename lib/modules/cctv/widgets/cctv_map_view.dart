@@ -488,7 +488,6 @@ class _MapCameraListPanel extends StatelessWidget {
         final primary = group.primaryCamera;
         final isActive = group.containsCamera(controller.activeCamera?.id);
         final status = group.aliveStatus(controller.aliveStatus);
-        final isFav = group.cameras.any((c) => controller.isFavorite(c.id));
         final distanceLabel = controller.distanceLabelFor(primary);
 
         final dotColor = status == true
@@ -558,14 +557,6 @@ class _MapCameraListPanel extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  if (isFav) ...[
-                    const Icon(
-                      Icons.star_rounded,
-                      size: 15,
-                      color: Color(0xFFF59E0B),
-                    ),
-                    const SizedBox(width: 4),
-                  ],
                   if (distanceLabel != null) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(

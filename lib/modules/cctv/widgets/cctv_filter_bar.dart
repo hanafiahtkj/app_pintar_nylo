@@ -235,32 +235,17 @@ class _CctvFilterBarState extends State<CctvFilterBar> {
                       icon: Icons.grid_view_rounded,
                       label: 'Semua',
                       count: ctrl.wilayahFilteredList.length,
-                      selected:
-                          ctrl.selectedCategory == null && !ctrl.favoritesOnly,
+                      selected: ctrl.selectedCategory == null,
                       tokens: tokens,
                       onTap: () => ctrl.selectCategory(null),
                     ),
-                    if (ctrl.favoriteCount > 0 || ctrl.favoritesOnly) ...[
-                      const SizedBox(width: 8),
-                      _QuickTogglePill(
-                        icon: Icons.star_rounded,
-                        label: 'Favorit',
-                        count: ctrl.favoriteCount,
-                        active: ctrl.favoritesOnly,
-                        activeAccent: const Color(0xFFD97706),
-                        inactiveIconColor: const Color(0xFFF59E0B),
-                        tokens: tokens,
-                        onTap: () => ctrl.setFavoritesOnly(!ctrl.favoritesOnly),
-                      ),
-                    ],
                     const SizedBox(width: 8),
                     for (final cat in ctrl.categories) ...[
                       _CategoryPill(
                         icon: _iconForCategory(cat.name),
                         label: cat.displayName,
                         count: ctrl.countForCategory(cat.uuid),
-                        selected: ctrl.selectedCategory == cat.uuid &&
-                            !ctrl.favoritesOnly,
+                        selected: ctrl.selectedCategory == cat.uuid,
                         tokens: tokens,
                         onTap: () => ctrl.selectCategory(cat.uuid),
                       ),
@@ -347,38 +332,42 @@ class _CctvFilterBarState extends State<CctvFilterBar> {
                 ),
               ],
 
-              // Active Filter Summary
-              if (ctrl.hasActiveFilters) ...[
+              // Active Filter Summary (hide count text on small/mobile screens)
+              if (ctrl.hasActiveFilters &&
+                  (width >= 600 ||
+                      ctrl.selectedKecamatanLabel.isNotEmpty ||
+                      ctrl.selectedKelurahanLabel.isNotEmpty)) ...[
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    RichText(
-                      text: TextSpan(
-                        style: tokens.caption.copyWith(fontSize: 12),
-                        children: [
-                          const TextSpan(text: 'Menampilkan '),
-                          TextSpan(
-                            text: '${ctrl.filteredCameras.length}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: tokens.textPrimary,
+                    if (width >= 600)
+                      RichText(
+                        text: TextSpan(
+                          style: tokens.caption.copyWith(fontSize: 12),
+                          children: [
+                            const TextSpan(text: 'Menampilkan '),
+                            TextSpan(
+                              text: '${ctrl.filteredCameras.length}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: tokens.textPrimary,
+                              ),
                             ),
-                          ),
-                          const TextSpan(text: ' dari '),
-                          TextSpan(
-                            text: '${ctrl.cameras.length}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: tokens.textPrimary,
+                            const TextSpan(text: ' dari '),
+                            TextSpan(
+                              text: '${ctrl.cameras.length}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: tokens.textPrimary,
+                              ),
                             ),
-                          ),
-                          const TextSpan(text: ' kamera'),
-                        ],
+                            const TextSpan(text: ' kamera'),
+                          ],
+                        ),
                       ),
-                    ),
                     if (ctrl.selectedKecamatanLabel.isNotEmpty)
                       _RemovableFilterChip(
                         label: ctrl.selectedKecamatanLabel,
@@ -392,69 +381,6 @@ class _CctvFilterBarState extends State<CctvFilterBar> {
                         onRemove: () => ctrl.selectKelurahan(null),
                       ),
                   ],
-                ),
-              ],
-
-              // Recently Watched quick-switch strip (shown only when history > 1)
-              if (ctrl.recentCameras.length > 1) ...[
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 32,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: ctrl.recentCameras.length + 1,
-                    separatorBuilder: (_, __) => const SizedBox(width: 6),
-                    itemBuilder: (context, index) {
-                      if (index == 0) {
-                        return Center(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.history_rounded,
-                                size: 14,
-                                color: tokens.textMuted,
-                              ),
-                              const SizedBox(width: 4),
-                              Text('Terakhir:', style: tokens.caption),
-                            ],
-                          ),
-                        );
-                      }
-                      final cam = ctrl.recentCameras[index - 1];
-                      final isActive = ctrl.activeCamera?.id == cam.id;
-                      return Material(
-                        color:
-                            isActive ? tokens.primarySoft : tokens.surfaceSubtle,
-                        borderRadius:
-                            BorderRadius.circular(CctvTokens.radiusPill),
-                        child: InkWell(
-                          onTap: () => ctrl.selectCamera(cam),
-                          borderRadius:
-                              BorderRadius.circular(CctvTokens.radiusPill),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 11),
-                            child: Center(
-                              child: Text(
-                                cam.displayName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: isActive
-                                      ? FontWeight.w600
-                                      : FontWeight.w500,
-                                  color: isActive
-                                      ? tokens.primary
-                                      : tokens.textSecondary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
                 ),
               ],
             ],
@@ -508,7 +434,6 @@ class _QuickTogglePill extends StatelessWidget {
   final IconData icon;
   final double iconSize;
   final String label;
-  final int? count;
   final bool active;
   final Color activeAccent;
   final Color? inactiveIconColor;
@@ -520,7 +445,6 @@ class _QuickTogglePill extends StatelessWidget {
     required this.icon,
     this.iconSize = 14,
     required this.label,
-    this.count,
     required this.active,
     required this.activeAccent,
     this.inactiveIconColor,
@@ -550,7 +474,7 @@ class _QuickTogglePill extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
-            padding: EdgeInsets.fromLTRB(12, 0, count != null ? 8 : 12, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
               color: bg,
               borderRadius: BorderRadius.circular(CctvTokens.radiusPill),
@@ -583,16 +507,6 @@ class _QuickTogglePill extends StatelessWidget {
                     color: fg,
                   ),
                 ),
-                if (count != null) ...[
-                  const SizedBox(width: 6),
-                  _PillCountBadge(
-                    count: count!,
-                    active: active,
-                    activeBg: activeAccent,
-                    activeFg: Colors.white,
-                    tokens: tokens,
-                  ),
-                ],
               ],
             ),
           ),

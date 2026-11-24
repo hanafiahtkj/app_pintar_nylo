@@ -63,7 +63,6 @@ class _CctvTelemetryCardState extends State<CctvTelemetryCard> {
     CctvCamera? activeCam,
   ) {
     final fullBleed = widget.isFullBleed;
-    final isFav = widget.controller.isFavorite(activeCam?.id);
     final distanceLabel = widget.controller.distanceLabelFor(activeCam);
 
     return Container(
@@ -153,19 +152,6 @@ class _CctvTelemetryCardState extends State<CctvTelemetryCard> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _SoftIconAction(
-                    icon: isFav
-                        ? Icons.star_rounded
-                        : Icons.star_outline_rounded,
-                    tooltip: isFav ? 'Hapus dari favorit' : 'Simpan ke favorit',
-                    color: isFav
-                        ? const Color(0xFFF59E0B)
-                        : tokens.textSecondary,
-                    background:
-                        isFav ? tokens.warningSoft : tokens.surfaceSubtle,
-                    onTap: () => widget.controller.toggleFavorite(activeCam.id),
-                  ),
-                  const SizedBox(width: 6),
                   _SoftIconAction(
                     icon: Icons.map_outlined,
                     tooltip: 'Lihat lokasi di peta',
@@ -267,7 +253,6 @@ class _CctvTelemetryCardState extends State<CctvTelemetryCard> {
     CctvTokens tokens,
     CctvCamera? activeCam,
   ) {
-    final isFav = widget.controller.isFavorite(activeCam?.id);
     final distanceLabel = widget.controller.distanceLabelFor(activeCam);
 
     return Container(
@@ -328,21 +313,6 @@ class _CctvTelemetryCardState extends State<CctvTelemetryCard> {
                           ),
                         ),
                       ],
-                      const Spacer(),
-                      _SoftIconAction(
-                        icon: isFav
-                            ? Icons.star_rounded
-                            : Icons.star_outline_rounded,
-                        tooltip:
-                            isFav ? 'Hapus dari favorit' : 'Simpan ke favorit',
-                        color: isFav
-                            ? const Color(0xFFF59E0B)
-                            : tokens.textSecondary,
-                        background:
-                            isFav ? tokens.warningSoft : tokens.surfaceSubtle,
-                        onTap: () =>
-                            widget.controller.toggleFavorite(activeCam.id),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 5),

@@ -227,24 +227,11 @@ void main() {
       expect(nearestCtrl.activeCamera?.id, 'c1');
     });
 
-    test('supports favorites, online-only filter, recents, and distance format',
-        () {
-      controller.toggleFavorite('c2');
-      expect(controller.isFavorite('c2'), isTrue);
-      expect(controller.favoriteCount, 1);
-
-      controller.setFavoritesOnly(true);
-      expect(controller.filteredCameras.map((c) => c.id).toList(), ['c2']);
-
-      controller.setFavoritesOnly(false);
+    test('supports online-only filter and distance format', () {
       controller.setOnlineOnly(true);
       expect(controller.filteredCameras.map((c) => c.id).toList(), ['c2']);
 
       controller.setOnlineOnly(false);
-      controller.selectCamera(controller.cameras[1]);
-      controller.selectCamera(controller.cameras[2]);
-      expect(controller.recentCameras.map((c) => c.id).toList(), ['c3', 'c2']);
-
       expect(CctvLocalService.formatDistance(420), '420 m');
       expect(CctvLocalService.formatDistance(1460), '1.5 km');
     });

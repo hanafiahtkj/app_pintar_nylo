@@ -1,9 +1,9 @@
 name: app_pintar_nylo
 description: Aplikasi Banjarmasin Pintar refactored with Nylo v7.
 
-publish_to: 'none'
+publish_to: "none"
 
-version: 3.0.9+50
+version: 3.0.10+51
 
 environment:
   sdk: ^3.10.7

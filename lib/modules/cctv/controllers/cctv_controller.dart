@@ -51,9 +51,6 @@ class CctvController extends ChangeNotifier {
   List<CctvKecamatan> _wilayahList = const [];
   final Map<String, bool> _aliveStatus = <String, bool>{};
 
-  final Set<String> _favoriteIds = <String>{};
-  final List<String> _recentIds = <String>[];
-
   bool _isLoadingInitial = false;
   String? _initialError;
   bool _isCheckingAlive = false;
@@ -69,7 +66,6 @@ class CctvController extends ChangeNotifier {
   String? _selectedCategory;
   String? _selectedKecamatan;
   String? _selectedKelurahan;
-  bool _favoritesOnly = false;
   bool _onlineOnly = false;
   String _searchQuery = '';
 
@@ -87,9 +83,6 @@ class CctvController extends ChangeNotifier {
   List<CctvKecamatan> get wilayahList => _wilayahList;
   Map<String, bool> get aliveStatus => Map.unmodifiable(_aliveStatus);
 
-  Set<String> get favoriteIds => Set.unmodifiable(_favoriteIds);
-  List<String> get recentIds => List.unmodifiable(_recentIds);
-
   bool get isLoadingInitial => _isLoadingInitial;
   String? get initialError => _initialError;
   bool get isCheckingAlive => _isCheckingAlive;
@@ -105,25 +98,9 @@ class CctvController extends ChangeNotifier {
   String? get selectedCategory => _selectedCategory;
   String? get selectedKecamatan => _selectedKecamatan;
   String? get selectedKelurahan => _selectedKelurahan;
-  bool get favoritesOnly => _favoritesOnly;
   bool get onlineOnly => _onlineOnly;
   String get searchQuery => _searchQuery;
   int get mapFocusVersion => _mapFocusVersion;
-
-  bool isFavorite(String? cameraId) =>
-      cameraId != null && _favoriteIds.contains(cameraId);
-
-  int get favoriteCount =>
-      _cameras.where((c) => _favoriteIds.contains(c.id)).length;
-
-  List<CctvCamera> get recentCameras {
-    if (_recentIds.isEmpty || _cameras.isEmpty) return const [];
-    final byId = {for (final cam in _cameras) cam.id: cam};
-    return _recentIds
-        .map((id) => byId[id])
-        .whereType<CctvCamera>()
-        .toList();
-  }
 
   double? distanceMetersTo(CctvCamera? camera) {
     if (camera == null || !camera.hasValidCoords || !hasUserLocation) {
@@ -279,9 +256,6 @@ class CctvController extends ChangeNotifier {
   List<CctvCamera> get filteredCameras {
     final q = _searchQuery.trim().toLowerCase();
     final filtered = _cameras.where((cam) {
-      if (_favoritesOnly && !_favoriteIds.contains(cam.id)) {
-        return false;
-      }
       if (_onlineOnly && _aliveStatus[cam.id] != true) {
         return false;
       }
@@ -297,7 +271,6 @@ class CctvController extends ChangeNotifier {
   }
 
   bool get hasActiveFilters =>
-      _favoritesOnly ||
       _onlineOnly ||
       _selectedCategory != null ||
       _selectedKecamatan != null ||
@@ -360,8 +333,6 @@ class CctvController extends ChangeNotifier {
     List<CctvCategory> categories = const [],
     List<CctvKecamatan> wilayah = const [],
     Map<String, bool>? aliveStatus,
-    Set<String>? favoriteIds,
-    List<String>? recentIds,
     double? userLat,
     double? userLng,
   }) {
@@ -372,16 +343,6 @@ class CctvController extends ChangeNotifier {
       _aliveStatus
         ..clear()
         ..addAll(aliveStatus);
-    }
-    if (favoriteIds != null) {
-      _favoriteIds
-        ..clear()
-        ..addAll(favoriteIds);
-    }
-    if (recentIds != null) {
-      _recentIds
-        ..clear()
-        ..addAll(recentIds.take(CctvLocalService.maxRecents));
     }
     if (userLat != null && userLng != null) {
       _userLat = userLat;
@@ -403,8 +364,6 @@ class CctvController extends ChangeNotifier {
         _api.getCameras(forceRefresh: forceRefresh),
         _api.getCategories(forceRefresh: forceRefresh),
         _api.getWilayah(forceRefresh: forceRefresh),
-        _localService.loadFavorites(),
-        _localService.loadRecents(),
         _localService.getCurrentLocation(
           requestPermission: true,
           timeout: const Duration(milliseconds: 3500),
@@ -417,14 +376,7 @@ class CctvController extends ChangeNotifier {
       _categories = results[1] as List<CctvCategory>;
       _wilayahList = results[2] as List<CctvKecamatan>;
 
-      _favoriteIds
-        ..clear()
-        ..addAll(results[3] as Set<String>);
-      _recentIds
-        ..clear()
-        ..addAll(results[4] as List<String>);
-
-      final coords = results[5] as CctvCoordinates?;
+      final coords = results[3] as CctvCoordinates?;
       if (coords != null) {
         _userLat = coords.latitude;
         _userLng = coords.longitude;
@@ -497,38 +449,10 @@ class CctvController extends ChangeNotifier {
     _notify();
   }
 
-  void toggleFavorite(String cameraId) {
-    if (_favoriteIds.contains(cameraId)) {
-      _favoriteIds.remove(cameraId);
-      if (_favoriteIds.isEmpty && _favoritesOnly) {
-        _favoritesOnly = false;
-      }
-    } else {
-      _favoriteIds.add(cameraId);
-    }
-    unawaited(_localService.saveFavorites(_favoriteIds));
-    _notify();
-  }
-
-  void setFavoritesOnly(bool value) {
-    if (_favoritesOnly == value) return;
-    _favoritesOnly = value;
-    _notify();
-  }
-
   void setOnlineOnly(bool value) {
     if (_onlineOnly == value) return;
     _onlineOnly = value;
     _notify();
-  }
-
-  void _recordRecent(String cameraId) {
-    _recentIds.remove(cameraId);
-    _recentIds.insert(0, cameraId);
-    if (_recentIds.length > CctvLocalService.maxRecents) {
-      _recentIds.removeRange(CctvLocalService.maxRecents, _recentIds.length);
-    }
-    unawaited(_localService.saveRecents(_recentIds));
   }
 
   Future<void> checkAlive({bool forceRefresh = false}) async {
@@ -562,8 +486,7 @@ class CctvController extends ChangeNotifier {
   }
 
   void selectCategory(String? categoryUuid) {
-    if (_selectedCategory == categoryUuid && !_favoritesOnly) return;
-    _favoritesOnly = false;
+    if (_selectedCategory == categoryUuid) return;
     _selectedCategory = categoryUuid;
     _notify();
   }
@@ -604,7 +527,6 @@ class CctvController extends ChangeNotifier {
   }
 
   void resetFilters() {
-    _favoritesOnly = false;
     _onlineOnly = false;
     _selectedCategory = null;
     _selectedKecamatan = null;
@@ -617,7 +539,6 @@ class CctvController extends ChangeNotifier {
   void selectCamera(CctvCamera camera, {bool fromAutoScan = false}) {
     if (!fromAutoScan) {
       _isAutoScanning = false;
-      _recordRecent(camera.id);
     }
     if (_activeCamera?.id != camera.id) {
       _playingLiveCameraId = null;
@@ -629,7 +550,6 @@ class CctvController extends ChangeNotifier {
   void markCameraLive(String cameraId) {
     _isAutoScanning = false;
     _playingLiveCameraId = cameraId;
-    _recordRecent(cameraId);
     if (_aliveStatus[cameraId] != true) {
       _aliveStatus[cameraId] = true;
     }
