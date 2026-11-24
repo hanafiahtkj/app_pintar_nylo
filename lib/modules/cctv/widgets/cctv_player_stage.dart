@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import '/config/app.dart';
 import '/modules/cctv/models/cctv_camera.dart';
 import '/modules/cctv/pages/cctv_fullscreen_player_page.dart';
@@ -19,8 +20,8 @@ class CctvPlayerStage extends StatefulWidget {
   final bool isDesktopStage;
 
   /// When `false` (e.g. another route with its own inline player is on top),
-  /// the player releases its active [VideoPlayerController] so two streams do
-  /// not decode and compete for bandwidth/CPU simultaneously.
+  /// the player stops its active stream so two streams do not decode and
+  /// compete for bandwidth/CPU simultaneously.
   final bool isActive;
 
   const CctvPlayerStage({
@@ -39,19 +40,26 @@ class CctvPlayerStage extends StatefulWidget {
 
 class _CctvPlayerStageState extends State<CctvPlayerStage>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
-  VideoPlayerController? _videoController;
+  Player? _player;
+  VideoController? _videoController;
+  final List<StreamSubscription<dynamic>> _playerSubs = [];
+
   _StreamState _streamState = _StreamState.idle;
   String? _errorMsg;
   bool _isMuted = true;
+  bool _isPlaying = false;
+  bool _isBuffering = false;
+  bool _awaitingOpen = false;
+  bool _hasVideoFrame = false;
+  bool _readyReported = false;
+  Duration? _initialPosAfterOpen;
   bool _showControls = false;
   bool _pausedByUser = false;
   bool _inFullscreen = false;
   int _loadEpoch = 0;
+  String? _activeLoadCameraId;
   Timer? _hideControlsTimer;
-  bool _lastIsBuffering = false;
-  bool _lastIsPlaying = false;
-  bool _lastIsInitialized = false;
-  double _lastAspectRatio = 0;
+  Timer? _loadTimeoutTimer;
 
   late final AnimationController _pulseController;
 
@@ -75,11 +83,17 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
 
     if (!widget.isActive && oldWidget.isActive) {
       _loadEpoch++;
+      _loadTimeoutTimer?.cancel();
       _hideControlsTimer?.cancel();
+      _activeLoadCameraId = null;
+      _hasVideoFrame = false;
+      _readyReported = false;
+      _isPlaying = false;
+      _isBuffering = false;
       _streamState = _StreamState.idle;
       _errorMsg = null;
       _showControls = false;
-      unawaited(_disposeController());
+      unawaited(_player?.stop());
       return;
     }
 
@@ -87,7 +101,7 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
       if (widget.camera != null) {
         unawaited(_loadCamera(widget.camera!));
       } else {
-        unawaited(_disposeController());
+        unawaited(_player?.stop());
       }
       return;
     }
@@ -99,24 +113,26 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
       if (widget.camera != null) {
         unawaited(_loadCamera(widget.camera!));
       } else {
-        unawaited(_disposeController());
+        _loadEpoch++;
+        _loadTimeoutTimer?.cancel();
+        unawaited(_player?.stop());
       }
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = _videoController;
-    if (controller == null || !controller.value.isInitialized) return;
+    final player = _player;
+    if (player == null || !widget.isActive) return;
 
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      if (controller.value.isPlaying) {
-        controller.pause();
+      if (_isPlaying) {
+        unawaited(player.pause());
       }
     } else if (state == AppLifecycleState.resumed) {
       if (!_pausedByUser && _streamState == _StreamState.playing) {
-        controller.play();
+        unawaited(player.play());
       }
     }
   }
@@ -125,32 +141,162 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _hideControlsTimer?.cancel();
+    _loadTimeoutTimer?.cancel();
     _pulseController.dispose();
     _loadEpoch++;
-    final controller = _videoController;
+    for (final sub in _playerSubs) {
+      unawaited(sub.cancel());
+    }
+    _playerSubs.clear();
+    final player = _player;
+    _player = null;
     _videoController = null;
-    controller?.removeListener(_onVideoUpdate);
-    controller?.dispose();
+    if (player != null) {
+      unawaited(player.dispose());
+    }
     super.dispose();
   }
 
-  Future<void> _disposeController() async {
-    final old = _videoController;
-    _videoController = null;
-    if (old != null) {
-      old.removeListener(_onVideoUpdate);
-      await old.dispose();
+  Future<Player> _ensurePlayer() async {
+    final existing = _player;
+    if (existing != null) return existing;
+
+    final player = Player(
+      configuration: const PlayerConfiguration(
+        bufferSize: 4 * 1024 * 1024,
+        protocolWhitelist: [
+          'http',
+          'https',
+          'tcp',
+          'tls',
+          'crypto',
+          'hls',
+          'file',
+          'data',
+        ],
+      ),
+    );
+
+    final platform = player.platform;
+    if (platform is NativePlayer) {
+      await platform.setProperty('profile', 'low-latency');
+      await platform.setProperty('cache', 'no');
+      await platform.setProperty('demuxer-lavf-probesize', '32768');
+      await platform.setProperty('demuxer-lavf-analyzeduration', '0.5');
+      await platform.setProperty('network-timeout', '10');
+      await platform.setProperty('hls-bitrate', 'max');
+      await platform.setProperty('demuxer-lavf-o', 'live_start_index=-1');
     }
+
+    final videoController = VideoController(player);
+    _player = player;
+    _videoController = videoController;
+
+    _playerSubs.add(
+      player.stream.playing.listen((playing) {
+        if (!mounted || !widget.isActive) return;
+        if (_isPlaying == playing) return;
+        _isPlaying = playing;
+        _checkStreamReady();
+        if (!_inFullscreen) setState(() {});
+      }),
+    );
+
+    _playerSubs.add(
+      player.stream.buffering.listen((buffering) {
+        if (!mounted || !widget.isActive) return;
+        if (_isBuffering == buffering) return;
+        _isBuffering = buffering;
+        _checkStreamReady();
+        if (!_inFullscreen) setState(() {});
+      }),
+    );
+
+    _playerSubs.add(
+      player.stream.position.listen((position) {
+        if (!mounted || !widget.isActive) return;
+        if (_awaitingOpen || _readyReported) return;
+        if (_initialPosAfterOpen == null) {
+          _initialPosAfterOpen = position;
+          return;
+        }
+        if (position != _initialPosAfterOpen &&
+            position > Duration.zero &&
+            (player.state.width ?? 0) > 0) {
+          _hasVideoFrame = true;
+          _checkStreamReady();
+        }
+      }),
+    );
+
+    _playerSubs.add(
+      player.stream.error.listen((error) {
+        if (!mounted || !widget.isActive || error.isEmpty) return;
+        // Ignore non-fatal warnings once already actively playing with frames
+        if (_streamState == _StreamState.playing && _isPlaying && !_isBuffering) {
+          return;
+        }
+        _handleLoadFailure(
+          _loadEpoch,
+          'Siaran terputus karena gangguan jaringan atau kamera sedang offline.',
+        );
+      }),
+    );
+
+    return player;
+  }
+
+  void _checkStreamReady() {
+    if (_readyReported || _awaitingOpen || _streamState != _StreamState.loading) {
+      return;
+    }
+    final camId = _activeLoadCameraId;
+    if (camId == null) return;
+
+    // Ready once the new stream has decoded frames and is actively playing
+    if (_hasVideoFrame && _isPlaying && !_isBuffering) {
+      _readyReported = true;
+      _loadTimeoutTimer?.cancel();
+      setState(() {
+        _streamState = _StreamState.playing;
+        _errorMsg = null;
+        _showControls = true;
+      });
+      _scheduleHideControls(duration: const Duration(milliseconds: 2500));
+      widget.onStreamReady(camId);
+    }
+  }
+
+  void _handleLoadFailure(int epoch, String message) {
+    if (!mounted || epoch != _loadEpoch) return;
+    _loadTimeoutTimer?.cancel();
+    if (_streamState == _StreamState.error) return;
+
+    final advanced = widget.onStreamError();
+    if (advanced) return;
+
+    setState(() {
+      _streamState = _StreamState.error;
+      _errorMsg = message;
+    });
   }
 
   Future<void> _loadCamera(CctvCamera camera) async {
     final epoch = ++_loadEpoch;
     _pausedByUser = false;
+    _awaitingOpen = true;
+    _hasVideoFrame = false;
+    _readyReported = false;
+    _initialPosAfterOpen = null;
+    _isBuffering = true;
+    _activeLoadCameraId = camera.id;
     _hideControlsTimer?.cancel();
+    _loadTimeoutTimer?.cancel();
 
     final url = camera.videoUrl?.trim();
     if (url == null || url.isEmpty) {
-      await _disposeController();
+      unawaited(_player?.stop());
+      await Future<void>.microtask(() {});
       if (!mounted || epoch != _loadEpoch) return;
       final advanced = widget.onStreamError();
       if (advanced) return;
@@ -167,87 +313,42 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
       _showControls = false;
     });
 
-    await _disposeController();
-    if (!mounted || epoch != _loadEpoch) return;
-
-    final origin = AppConfig.cctvApiBaseUrl.replaceAll(RegExp(r'/+$'), '');
-    final isHls = url.toLowerCase().contains('.m3u8');
-    final controller = VideoPlayerController.networkUrl(
-      Uri.parse(url),
-      formatHint: isHls ? VideoFormat.hls : null,
-      httpHeaders: {
-        'Origin': origin,
-        'Referer': '$origin/',
-      },
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-    );
+    _loadTimeoutTimer = Timer(const Duration(seconds: 12), () {
+      if (!mounted || epoch != _loadEpoch || _readyReported) return;
+      unawaited(_player?.stop());
+      _handleLoadFailure(
+        epoch,
+        'Siaran gagal dimuat karena gangguan jaringan atau kamera sedang offline.',
+      );
+    });
 
     try {
-      await controller.initialize().timeout(const Duration(seconds: 12));
-      if (!mounted || epoch != _loadEpoch) {
-        await controller.dispose();
-        return;
-      }
-
-      await controller.setVolume(_isMuted ? 0.0 : 1.0);
-      _lastIsBuffering = controller.value.isBuffering;
-      _lastIsPlaying = controller.value.isPlaying;
-      _lastIsInitialized = controller.value.isInitialized;
-      _lastAspectRatio = controller.value.aspectRatio;
-      controller.addListener(_onVideoUpdate);
-      _videoController = controller;
-      await controller.play();
-
+      final player = await _ensurePlayer();
       if (!mounted || epoch != _loadEpoch) return;
-      setState(() {
-        _streamState = _StreamState.playing;
-        _errorMsg = null;
-        // Briefly reveal controls so users discover mute & fullscreen actions
-        _showControls = true;
-      });
-      _scheduleHideControls(duration: const Duration(milliseconds: 2500));
-      widget.onStreamReady(camera.id);
+
+      final origin = AppConfig.cctvApiBaseUrl.replaceAll(RegExp(r'/+$'), '');
+      await player.setVolume(_isMuted ? 0.0 : 100.0);
+      if (!mounted || epoch != _loadEpoch) return;
+
+      // Reuse the single libmpv player instance directly without destroying it
+      await player.open(
+        Media(
+          url,
+          httpHeaders: {
+            'Origin': origin,
+            'Referer': '$origin/',
+          },
+        ),
+        play: true,
+      );
+      if (!mounted || epoch != _loadEpoch) return;
+      _awaitingOpen = false;
+      _initialPosAfterOpen = player.state.position;
     } catch (_) {
-      await controller.dispose();
-      if (!mounted || epoch != _loadEpoch) return;
-
-      final advanced = widget.onStreamError();
-      if (advanced) return;
-
-      setState(() {
-        _streamState = _StreamState.error;
-        _errorMsg =
-            'Siaran gagal dimuat karena gangguan jaringan atau kamera sedang offline.';
-      });
-    }
-  }
-
-  void _onVideoUpdate() {
-    final controller = _videoController;
-    if (!mounted || controller == null) return;
-
-    if (controller.value.hasError && _streamState != _StreamState.error) {
-      final advanced = widget.onStreamError();
-      if (advanced) return;
-      setState(() {
-        _streamState = _StreamState.error;
-        _errorMsg =
-            'Siaran terputus karena gangguan jaringan atau kamera sedang offline.';
-      });
-      return;
-    }
-    if (!_inFullscreen) {
-      final val = controller.value;
-      if (val.isBuffering != _lastIsBuffering ||
-          val.isPlaying != _lastIsPlaying ||
-          val.isInitialized != _lastIsInitialized ||
-          val.aspectRatio != _lastAspectRatio) {
-        _lastIsBuffering = val.isBuffering;
-        _lastIsPlaying = val.isPlaying;
-        _lastIsInitialized = val.isInitialized;
-        _lastAspectRatio = val.aspectRatio;
-        setState(() {});
-      }
+      _handleLoadFailure(
+        epoch,
+        'Siaran gagal dimuat karena gangguan jaringan atau kamera sedang offline.',
+      );
     }
   }
 
@@ -273,37 +374,41 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
   }
 
   void _togglePlayPause() {
-    final controller = _videoController;
-    if (controller == null || !controller.value.isInitialized) return;
-    if (controller.value.isPlaying) {
+    final player = _player;
+    if (player == null) return;
+    if (_isPlaying) {
       _pausedByUser = true;
-      controller.pause();
+      unawaited(player.pause());
     } else {
       _pausedByUser = false;
-      controller.play();
+      unawaited(player.play());
     }
     _scheduleHideControls();
   }
 
   void _toggleMute() {
-    final controller = _videoController;
+    final player = _player;
     _isMuted = !_isMuted;
-    controller?.setVolume(_isMuted ? 0.0 : 1.0);
+    if (player != null) {
+      unawaited(player.setVolume(_isMuted ? 0.0 : 100.0));
+    }
     setState(() {});
     _scheduleHideControls();
   }
 
   Future<void> _openFullscreen() async {
-    final controller = _videoController;
+    final player = _player;
+    final videoController = _videoController;
     final cam = widget.camera;
-    if (controller == null || !controller.value.isInitialized || cam == null) {
+    if (player == null || videoController == null || cam == null) {
       return;
     }
     _inFullscreen = true;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => CctvFullscreenPlayerPage(
-          controller: controller,
+          player: player,
+          videoController: videoController,
           camera: cam,
           isAlive: widget.isAlive,
           initialMuted: _isMuted,
@@ -322,10 +427,10 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
   @override
   Widget build(BuildContext context) {
     final tokens = CctvTokens.of(context);
-    final controller = _videoController;
-    final isInitialized = controller != null && controller.value.isInitialized;
-    final isBuffering = isInitialized && controller.value.isBuffering;
+    final videoController = _videoController;
     final camName = widget.camera?.displayName ?? '';
+    final showBuffering =
+        _streamState == _StreamState.playing && _isBuffering && !_pausedByUser;
 
     final playerContent = AspectRatio(
       aspectRatio: 16 / 9,
@@ -337,18 +442,18 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
           children: [
             Container(color: Colors.black),
 
-            if (isInitialized && _streamState == _StreamState.playing)
-              Center(
-                child: AspectRatio(
-                  aspectRatio: controller.value.aspectRatio > 0
-                      ? controller.value.aspectRatio
-                      : 16 / 9,
-                  child: VideoPlayer(controller),
-                ),
+            if (videoController != null &&
+                _streamState != _StreamState.error &&
+                _streamState != _StreamState.idle)
+              Video(
+                controller: videoController,
+                controls: NoVideoControls,
+                fill: Colors.black,
+                fit: BoxFit.contain,
               ),
 
             // Loading / Buffering overlay with active camera name
-            if (_streamState == _StreamState.loading || isBuffering)
+            if (_streamState == _StreamState.loading || showBuffering)
               Container(
                 color: _streamState == _StreamState.loading
                     ? const Color(0xBF090B10)
@@ -478,7 +583,7 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
             ),
 
             // Bottom playback controls overlay
-            if (isInitialized && _streamState == _StreamState.playing)
+            if (videoController != null && _streamState == _StreamState.playing)
               Positioned(
                 left: 0,
                 right: 0,
@@ -505,15 +610,13 @@ class _CctvPlayerStageState extends State<CctvPlayerStage>
                           IconButton(
                             onPressed: _togglePlayPause,
                             icon: Icon(
-                              controller.value.isPlaying
+                              _isPlaying
                                   ? Icons.pause_rounded
                                   : Icons.play_arrow_rounded,
                               color: Colors.white,
                               size: 22,
                             ),
-                            tooltip: controller.value.isPlaying
-                                ? 'Jeda'
-                                : 'Putar',
+                            tooltip: _isPlaying ? 'Jeda' : 'Putar',
                           ),
                           IconButton(
                             onPressed: _toggleMute,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
 import '/config/app.dart';
 import '/resources/widgets/splash_screen.dart';
 import '../resources/widgets/main_widget.dart';
@@ -23,4 +24,6 @@ class Boot {
       );
 }
 
-Future<void> _init() async {}
+Future<void> _init() async {
+  MediaKit.ensureInitialized();
+}

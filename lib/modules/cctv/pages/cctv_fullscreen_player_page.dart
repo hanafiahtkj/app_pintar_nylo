@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:video_player/video_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 import '/modules/cctv/models/cctv_camera.dart';
 import '/modules/cctv/widgets/cctv_theme_tokens.dart';
 
 class CctvFullscreenPlayerPage extends StatefulWidget {
-  final VideoPlayerController controller;
+  final Player player;
+  final VideoController videoController;
   final CctvCamera camera;
   final bool? isAlive;
   final bool initialMuted;
@@ -14,7 +16,8 @@ class CctvFullscreenPlayerPage extends StatefulWidget {
 
   const CctvFullscreenPlayerPage({
     super.key,
-    required this.controller,
+    required this.player,
+    required this.videoController,
     required this.camera,
     required this.isAlive,
     required this.initialMuted,
@@ -30,13 +33,19 @@ class _CctvFullscreenPlayerPageState extends State<CctvFullscreenPlayerPage>
     with SingleTickerProviderStateMixin {
   bool _showControls = true;
   late bool _isMuted;
+  late bool _isPlaying;
+  late bool _isBuffering;
+  bool _hasError = false;
   Timer? _hideTimer;
   late final AnimationController _pulseController;
+  final List<StreamSubscription<dynamic>> _subs = [];
 
   @override
   void initState() {
     super.initState();
     _isMuted = widget.initialMuted;
+    _isPlaying = widget.player.state.playing;
+    _isBuffering = widget.player.state.buffering;
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -47,7 +56,29 @@ class _CctvFullscreenPlayerPageState extends State<CctvFullscreenPlayerPage>
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-    widget.controller.addListener(_onPlayerUpdate);
+
+    _subs.add(
+      widget.player.stream.playing.listen((playing) {
+        if (mounted && _isPlaying != playing) {
+          setState(() => _isPlaying = playing);
+        }
+      }),
+    );
+    _subs.add(
+      widget.player.stream.buffering.listen((buffering) {
+        if (mounted && _isBuffering != buffering) {
+          setState(() => _isBuffering = buffering);
+        }
+      }),
+    );
+    _subs.add(
+      widget.player.stream.error.listen((error) {
+        if (mounted && error.isNotEmpty && !_hasError) {
+          setState(() => _hasError = true);
+        }
+      }),
+    );
+
     _scheduleHide();
   }
 
@@ -55,15 +86,13 @@ class _CctvFullscreenPlayerPageState extends State<CctvFullscreenPlayerPage>
   void dispose() {
     _hideTimer?.cancel();
     _pulseController.dispose();
-    widget.controller.removeListener(_onPlayerUpdate);
+    for (final sub in _subs) {
+      unawaited(sub.cancel());
+    }
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     // Restore default system orientations so landscape tablets aren't forced to portrait
     SystemChrome.setPreferredOrientations(const []);
     super.dispose();
-  }
-
-  void _onPlayerUpdate() {
-    if (mounted) setState(() {});
   }
 
   void _scheduleHide() {
@@ -81,17 +110,17 @@ class _CctvFullscreenPlayerPageState extends State<CctvFullscreenPlayerPage>
   }
 
   void _togglePlayPause() {
-    if (widget.controller.value.isPlaying) {
-      widget.controller.pause();
+    if (_isPlaying) {
+      unawaited(widget.player.pause());
     } else {
-      widget.controller.play();
+      unawaited(widget.player.play());
     }
     _scheduleHide();
   }
 
   void _toggleMute() {
     _isMuted = !_isMuted;
-    widget.controller.setVolume(_isMuted ? 0.0 : 1.0);
+    unawaited(widget.player.setVolume(_isMuted ? 0.0 : 100.0));
     widget.onMuteChanged(_isMuted);
     setState(() {});
     _scheduleHide();
@@ -100,9 +129,6 @@ class _CctvFullscreenPlayerPageState extends State<CctvFullscreenPlayerPage>
   @override
   Widget build(BuildContext context) {
     final tokens = CctvTokens.of(context);
-    final value = widget.controller.value;
-    final aspectRatio =
-        value.isInitialized && value.aspectRatio > 0 ? value.aspectRatio : 16 / 9;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -112,15 +138,15 @@ class _CctvFullscreenPlayerPageState extends State<CctvFullscreenPlayerPage>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (!value.hasError)
-              Center(
-                child: AspectRatio(
-                  aspectRatio: aspectRatio,
-                  child: VideoPlayer(widget.controller),
-                ),
+            if (!_hasError)
+              Video(
+                controller: widget.videoController,
+                controls: NoVideoControls,
+                fill: Colors.black,
+                fit: BoxFit.contain,
               ),
 
-            if (value.isBuffering && !value.hasError)
+            if (_isBuffering && !_hasError)
               Center(
                 child: CircularProgressIndicator(
                   color: tokens.primary,
@@ -128,7 +154,7 @@ class _CctvFullscreenPlayerPageState extends State<CctvFullscreenPlayerPage>
                 ),
               ),
 
-            if (value.hasError)
+            if (_hasError)
               Container(
                 color: const Color(0xE6090B10),
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -194,7 +220,7 @@ class _CctvFullscreenPlayerPageState extends State<CctvFullscreenPlayerPage>
                 ),
               ),
 
-            if (!value.hasError)
+            if (!_hasError)
               AnimatedOpacity(
                 opacity: _showControls ? 1.0 : 0.0,
                 duration: const Duration(milliseconds: 200),
@@ -284,13 +310,13 @@ class _CctvFullscreenPlayerPageState extends State<CctvFullscreenPlayerPage>
                                 IconButton(
                                   onPressed: _togglePlayPause,
                                   icon: Icon(
-                                    value.isPlaying
+                                    _isPlaying
                                         ? Icons.pause_rounded
                                         : Icons.play_arrow_rounded,
                                     color: Colors.white,
                                     size: 28,
                                   ),
-                                  tooltip: value.isPlaying ? 'Jeda' : 'Putar',
+                                  tooltip: _isPlaying ? 'Jeda' : 'Putar',
                                   constraints: const BoxConstraints(
                                     minWidth: CctvTokens.minTouchTarget,
                                     minHeight: CctvTokens.minTouchTarget,
