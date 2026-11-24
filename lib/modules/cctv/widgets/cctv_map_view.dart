@@ -34,6 +34,8 @@ class _CctvMapViewState extends State<CctvMapView>
   int _lastFocusVersion = -1;
 
   late final AnimationController _rippleController;
+  final DraggableScrollableController _sheetController =
+      DraggableScrollableController();
   NetworkTileProvider? _tileProvider;
 
   NetworkTileProvider get _osmTileProvider =>
@@ -69,6 +71,7 @@ class _CctvMapViewState extends State<CctvMapView>
 
   @override
   void dispose() {
+    _sheetController.dispose();
     _rippleController.dispose();
     super.dispose();
   }
@@ -136,14 +139,19 @@ class _CctvMapViewState extends State<CctvMapView>
     final mapGroups = ctrl.mapGroups;
     final listGroups = ctrl.allGroups;
 
-    final mapHeight = widget.isDesktopSplitPane ? 520.0 : 380.0;
+    final desktopMapHeight = 520.0;
+    final controlsBottomOffset = widget.isDesktopSplitPane ? 24.0 : 72.0;
+    final osmBottomOffset = widget.isDesktopSplitPane ? 8.0 : 66.0;
 
     final mapCanvas = LayoutBuilder(
       builder: (context, constraints) {
         final isCompactMap = constraints.maxWidth < 360;
+        final resolvedHeight = widget.isDesktopSplitPane
+            ? desktopMapHeight
+            : (constraints.maxHeight.isFinite ? constraints.maxHeight : 380.0);
 
         return SizedBox(
-          height: mapHeight,
+          height: resolvedHeight,
           width: double.infinity,
           child: Stack(
             children: [
@@ -226,7 +234,7 @@ class _CctvMapViewState extends State<CctvMapView>
               // Bottom-right thumb-friendly Zoom & Recenter controls
               Positioned(
                 right: 12,
-                bottom: 24,
+                bottom: controlsBottomOffset,
                 child: Column(
                   children: [
                     _MapSquareButton(
@@ -256,7 +264,7 @@ class _CctvMapViewState extends State<CctvMapView>
               // OSM Attribution badge
               Positioned(
                 left: 10,
-                bottom: 8,
+                bottom: osmBottomOffset,
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
@@ -276,24 +284,24 @@ class _CctvMapViewState extends State<CctvMapView>
       },
     );
 
-    final listPanel = _MapCameraListPanel(
-      groups: listGroups,
-      controller: ctrl,
-      tokens: tokens,
-      height: widget.isDesktopSplitPane ? mapHeight : null,
-      onClose: () => setState(() => _showListPanel = false),
-      onSelectGroup: (group) {
-        if (group.hasValidCoords && _mapReady) {
-          widget.mapController.move(
-            LatLng(group.latitude, group.longitude),
-            16,
-          );
-        }
-        widget.onGroupTap(group);
-      },
-    );
-
     if (widget.isDesktopSplitPane) {
+      final listPanel = _MapCameraListPanel(
+        groups: listGroups,
+        controller: ctrl,
+        tokens: tokens,
+        height: desktopMapHeight,
+        onClose: () => setState(() => _showListPanel = false),
+        onSelectGroup: (group) {
+          if (group.hasValidCoords && _mapReady) {
+            widget.mapController.move(
+              LatLng(group.latitude, group.longitude),
+              16,
+            );
+          }
+          widget.onGroupTap(group);
+        },
+      );
+
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -310,36 +318,210 @@ class _CctvMapViewState extends State<CctvMapView>
       );
     }
 
-    return Column(
-      children: [
-        if (widget.isFullBleed)
-          Container(
-            decoration: BoxDecoration(
-              border: Border(
-                top: BorderSide(color: tokens.divider),
-                bottom: BorderSide(color: tokens.divider),
-              ),
-            ),
-            child: mapCanvas,
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: mapCanvas,
-            ),
-          ),
-        if (_showListPanel)
-          Container(
-            decoration: widget.isFullBleed
-                ? null
-                : BoxDecoration(
-                    border: Border(top: BorderSide(color: tokens.divider)),
+    // Mobile / Tablet portrait: full-height map + Google Maps-style draggable sheet
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availHeight =
+            constraints.maxHeight.isFinite && constraints.maxHeight > 0
+                ? constraints.maxHeight
+                : 380.0;
+        final collapsedSize = (58.0 / availHeight).clamp(0.14, 0.38);
+        const maxSize = 0.94;
+        final midSize = collapsedSize < 0.48 ? 0.56 : null;
+
+        void toggleSheet() {
+          if (!_sheetController.isAttached) return;
+          final isExpanded = _sheetController.size > collapsedSize + 0.08;
+          _sheetController.animateTo(
+            isExpanded ? collapsedSize : (midSize ?? maxSize),
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+          );
+        }
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            mapCanvas,
+            DraggableScrollableSheet(
+              controller: _sheetController,
+              initialChildSize: collapsedSize,
+              minChildSize: collapsedSize,
+              maxChildSize: maxSize,
+              snap: true,
+              snapSizes: [
+                collapsedSize,
+                if (midSize != null) midSize,
+                maxSize,
+              ],
+              builder: (context, scrollController) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: tokens.surfaceElevated,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                    border: Border(
+                      top: BorderSide(color: tokens.border),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0F172A)
+                            .withValues(alpha: tokens.isDark ? 0.36 : 0.10),
+                        blurRadius: 14,
+                        offset: const Offset(0, -3),
+                      ),
+                    ],
                   ),
-            child: listPanel,
-          ),
-      ],
+                  clipBehavior: Clip.antiAlias,
+                  child: CustomScrollView(
+                    controller: scrollController,
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: GestureDetector(
+                          onTap: toggleSheet,
+                          behavior: HitTestBehavior.opaque,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(height: 8),
+                              Container(
+                                width: 36,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: tokens.border,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  10,
+                                  14,
+                                  10,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.videocam_outlined,
+                                      size: 16,
+                                      color: tokens.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Daftar Kamera',
+                                      style: tokens.label.copyWith(
+                                        color: tokens.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 7,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: tokens.surfaceSubtle,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '${listGroups.length}',
+                                        style: tokens.caption.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Icon(
+                                      Icons.keyboard_arrow_up_rounded,
+                                      size: 20,
+                                      color: tokens.textMuted,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Divider(height: 1, color: tokens.divider),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (listGroups.isEmpty)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 28,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.videocam_off_outlined,
+                                  size: 26,
+                                  color: tokens.textMuted,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Tidak ada kamera ditemukan',
+                                  style: tokens.label.copyWith(
+                                    color: tokens.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Ubah kata kunci atau filter wilayah di atas.',
+                                  style: tokens.caption,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 20),
+                          sliver: SliverList.separated(
+                            itemCount: listGroups.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 4),
+                            itemBuilder: (context, index) {
+                              final group = listGroups[index];
+                              return _MapCameraListPanel.buildGroupTile(
+                                group: group,
+                                controller: ctrl,
+                                tokens: tokens,
+                                onSelectGroup: (picked) {
+                                  if (picked.hasValidCoords && _mapReady) {
+                                    widget.mapController.move(
+                                      LatLng(
+                                        picked.latitude,
+                                        picked.longitude,
+                                      ),
+                                      16,
+                                    );
+                                  }
+                                  widget.onGroupTap(picked);
+                                  if (_sheetController.isAttached) {
+                                    _sheetController.animateTo(
+                                      collapsedSize,
+                                      duration:
+                                          const Duration(milliseconds: 240),
+                                      curve: Curves.easeOutCubic,
+                                    );
+                                  }
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -466,8 +648,21 @@ class _MapCameraListPanel extends StatelessWidget {
       padding: const EdgeInsets.all(10),
       itemCount: groups.length,
       separatorBuilder: (_, __) => const SizedBox(height: 4),
-      itemBuilder: (context, index) {
-        final group = groups[index];
+      itemBuilder: (context, index) => buildGroupTile(
+        group: groups[index],
+        controller: controller,
+        tokens: tokens,
+        onSelectGroup: onSelectGroup,
+      ),
+    );
+  }
+
+  static Widget buildGroupTile({
+    required CctvCameraGroup group,
+    required CctvController controller,
+    required CctvTokens tokens,
+    required ValueChanged<CctvCameraGroup> onSelectGroup,
+  }) {
         final primary = group.primaryCamera;
         final isActive = group.containsCamera(controller.activeCamera?.id);
         final status = group.aliveStatus(controller.aliveStatus);
@@ -612,8 +807,6 @@ class _MapCameraListPanel extends StatelessWidget {
             ),
           ),
         );
-      },
-    );
   }
 }
 

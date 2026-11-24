@@ -552,6 +552,7 @@ class _CategoryPill extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
+            height: 38,
             padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
             decoration: BoxDecoration(
               color: bg,
@@ -919,6 +920,498 @@ class _WilayahPickerSheetState extends State<_WilayahPickerSheet> {
           ],
         );
       },
+    );
+  }
+}
+
+
+/// Opens a clean modal bottom sheet with all CCTV filter controls
+/// (Category, Kecamatan, Kelurahan, Online-only, Reset) so the main mobile
+/// screen stays spacious for the video player and map.
+Future<void> showCctvFilterSheet({
+  required BuildContext context,
+  required CctvController controller,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) => _CctvFilterSheetBody(controller: controller),
+  );
+}
+
+class _CctvFilterSheetBody extends StatelessWidget {
+  final CctvController controller;
+
+  const _CctvFilterSheetBody({required this.controller});
+
+  Future<void> _pickKecamatan(BuildContext context) async {
+    final options = controller.kecamatanOptions;
+    final unassigned = controller.unassignedWilayahCount;
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _WilayahPickerSheet(
+        title: 'Pilih Kecamatan',
+        allLabel: 'Semua Kecamatan (${controller.categoryFilteredList.length})',
+        selectedValue: controller.selectedKecamatan ?? '',
+        items: [
+          for (final opt in options)
+            _PickerOption(
+              value: opt.kecamatan.uuid,
+              label: opt.kecamatan.namaKecamatan,
+              count: opt.count,
+            ),
+          if (unassigned > 0)
+            _PickerOption(
+              value: CctvController.unassignedWilayahValue,
+              label: 'Belum Terpetakan',
+              count: unassigned,
+            ),
+        ],
+      ),
+    );
+
+    if (selected != null) {
+      controller.selectKecamatan(selected.isEmpty ? null : selected);
+    }
+  }
+
+  Future<void> _pickKelurahan(BuildContext context) async {
+    if (!controller.canSelectKelurahan) return;
+    final options = controller.kelurahanOptions;
+    final total = options.fold<int>(0, (sum, o) => sum + o.count);
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _WilayahPickerSheet(
+        title: 'Pilih Kelurahan',
+        allLabel: 'Semua Kelurahan ($total)',
+        selectedValue: controller.selectedKelurahan ?? '',
+        items: [
+          for (final opt in options)
+            _PickerOption(
+              value: opt.kelurahan.uuid,
+              label: opt.kelurahan.nama,
+              count: opt.count,
+            ),
+        ],
+      ),
+    );
+
+    if (selected != null) {
+      controller.selectKelurahan(selected.isEmpty ? null : selected);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = CctvTokens.of(context);
+
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final kecText = controller.selectedKecamatanLabel.isNotEmpty
+            ? controller.selectedKecamatanLabel
+            : 'Semua Kecamatan (${controller.categoryFilteredList.length})';
+        final kelTotal =
+            controller.kelurahanOptions.fold<int>(0, (sum, o) => sum + o.count);
+        final kelText = !controller.canSelectKelurahan
+            ? 'Pilih kecamatan terlebih dahulu'
+            : (controller.selectedKelurahanLabel.isNotEmpty
+                ? controller.selectedKelurahanLabel
+                : 'Semua Kelurahan ($kelTotal)');
+
+        final hasFilter = controller.selectedCategory != null ||
+            controller.selectedKecamatan != null ||
+            controller.selectedKelurahan != null ||
+            controller.onlineOnly;
+
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 38,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: tokens.border,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('Filter CCTV', style: tokens.heading),
+                      ),
+                      if (hasFilter)
+                        TextButton(
+                          onPressed: () {
+                            controller.selectCategory(null);
+                            controller.selectKecamatan(null);
+                            controller.setOnlineOnly(false);
+                          },
+                          child: Text(
+                            'Reset',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: tokens.offlineText,
+                            ),
+                          ),
+                        ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close_rounded),
+                        tooltip: 'Tutup',
+                      ),
+                    ],
+                  ),
+                  Divider(height: 1, color: tokens.divider),
+                  const SizedBox(height: 16),
+
+                  // Kategori
+                  Text(
+                    'Kategori',
+                    style: tokens.label.copyWith(color: tokens.textPrimary),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _CategoryPill(
+                        icon: Icons.grid_view_rounded,
+                        label: 'Semua',
+                        count: controller.wilayahFilteredList.length,
+                        selected: controller.selectedCategory == null,
+                        tokens: tokens,
+                        onTap: () => controller.selectCategory(null),
+                      ),
+                      for (final cat in controller.categories)
+                        _CategoryPill(
+                          icon: _iconForCategory(cat.name),
+                          label: cat.displayName,
+                          count: controller.countForCategory(cat.uuid),
+                          selected: controller.selectedCategory == cat.uuid,
+                          tokens: tokens,
+                          onTap: () => controller.selectCategory(cat.uuid),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Wilayah & Status (uniform 48px option rows)
+                  Text(
+                    'Wilayah',
+                    style: tokens.label.copyWith(color: tokens.textPrimary),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 48,
+                    child: _SelectorButton(
+                      icon: Icons.location_city_rounded,
+                      label: kecText,
+                      active: controller.selectedKecamatan != null,
+                      enabled: true,
+                      tokens: tokens,
+                      onTap: () => _pickKecamatan(context),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 48,
+                    child: _SelectorButton(
+                      icon: Icons.location_on_outlined,
+                      label: kelText,
+                      active: controller.selectedKelurahan != null,
+                      enabled: controller.canSelectKelurahan,
+                      tokens: tokens,
+                      onTap: () => _pickKelurahan(context),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Status Online (exact same 48px height & styling)
+                  Container(
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: controller.onlineOnly
+                          ? tokens.onlineSoft
+                          : tokens.surfaceSubtle,
+                      borderRadius: BorderRadius.circular(CctvTokens.radiusMd),
+                      border: Border.all(
+                        color: controller.onlineOnly
+                            ? tokens.online.withValues(alpha: 0.4)
+                            : Colors.transparent,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 18,
+                          child: Center(
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: tokens.online,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Hanya tampilkan kamera online',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: controller.onlineOnly
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              color: tokens.textPrimary,
+                            ),
+                          ),
+                        ),
+                        Transform.scale(
+                          scale: 0.85,
+                          alignment: Alignment.centerRight,
+                          child: Switch.adaptive(
+                            value: controller.onlineOnly,
+                            activeTrackColor: tokens.online,
+                            onChanged: controller.setOnlineOnly,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+
+                  SizedBox(
+                    height: 48,
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: tokens.primary,
+                        foregroundColor: tokens.primaryOnFill,
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(CctvTokens.radiusMd),
+                        ),
+                      ),
+                      child: Text(
+                        'Tampilkan ${controller.filteredCameras.length} Kamera',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Compact 1-row summary of active filters & search query shown above the map
+/// on mobile only when at least one filter is active (0px height by default).
+class CctvActiveFilterChips extends StatelessWidget {
+  final CctvController controller;
+  final VoidCallback? onClearSearch;
+
+  const CctvActiveFilterChips({
+    super.key,
+    required this.controller,
+    this.onClearSearch,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!controller.hasActiveFilters) {
+      return const SizedBox.shrink();
+    }
+
+    final tokens = CctvTokens.of(context);
+    final chips = <Widget>[];
+
+    if (controller.searchQuery.trim().isNotEmpty) {
+      chips.add(
+        _ActiveFilterChip(
+          label: 'Cari: "${controller.searchQuery.trim()}"',
+          tokens: tokens,
+          onRemove: () {
+            controller.setSearchQuery('');
+            onClearSearch?.call();
+          },
+        ),
+      );
+    }
+
+    if (controller.selectedCategory != null) {
+      final cat = controller.categories
+          .where((c) => c.uuid == controller.selectedCategory)
+          .firstOrNull;
+      if (cat != null) {
+        chips.add(
+          _ActiveFilterChip(
+            label: cat.displayName,
+            tokens: tokens,
+            onRemove: () => controller.selectCategory(null),
+          ),
+        );
+      }
+    }
+
+    if (controller.selectedKecamatanLabel.isNotEmpty) {
+      chips.add(
+        _ActiveFilterChip(
+          label: controller.selectedKecamatanLabel,
+          tokens: tokens,
+          onRemove: () => controller.selectKecamatan(null),
+        ),
+      );
+    }
+
+    if (controller.selectedKelurahanLabel.isNotEmpty) {
+      chips.add(
+        _ActiveFilterChip(
+          label: controller.selectedKelurahanLabel,
+          tokens: tokens,
+          onRemove: () => controller.selectKelurahan(null),
+        ),
+      );
+    }
+
+    if (controller.onlineOnly) {
+      chips.add(
+        _ActiveFilterChip(
+          label: 'Online Saja',
+          tokens: tokens,
+          onRemove: () => controller.setOnlineOnly(false),
+        ),
+      );
+    }
+
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: SizedBox(
+        height: 32,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: chips.length + 1,
+          separatorBuilder: (_, __) => const SizedBox(width: 6),
+          itemBuilder: (_, index) {
+            if (index == chips.length) {
+              return InkWell(
+                onTap: () {
+                  controller.resetFilters();
+                  onClearSearch?.call();
+                },
+                borderRadius: BorderRadius.circular(CctvTokens.radiusPill),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: tokens.offlineSoft,
+                    borderRadius: BorderRadius.circular(CctvTokens.radiusPill),
+                  ),
+                  child: Text(
+                    'Reset',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: tokens.offlineText,
+                    ),
+                  ),
+                ),
+              );
+            }
+            return chips[index];
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveFilterChip extends StatelessWidget {
+  final String label;
+  final CctvTokens tokens;
+  final VoidCallback onRemove;
+
+  const _ActiveFilterChip({
+    required this.label,
+    required this.tokens,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(left: 10, right: 6),
+      decoration: BoxDecoration(
+        color: tokens.primarySoft,
+        borderRadius: BorderRadius.circular(CctvTokens.radiusPill),
+        border: Border.all(color: tokens.primary.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: tokens.primary,
+            ),
+          ),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: onRemove,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(2),
+              child: Icon(
+                Icons.close_rounded,
+                size: 14,
+                color: tokens.primary,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

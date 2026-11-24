@@ -30,8 +30,11 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
   late final bool _ownsController;
   final MapController _mapController = MapController();
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   final GlobalKey _distributionSectionKey = GlobalKey();
   bool _isFullscreenMapOpen = false;
+  bool _isSearching = false;
 
   @override
   LoadingStyle get loadingStyle => LoadingStyle.none();
@@ -69,11 +72,36 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     _mapController.dispose();
     if (_ownsController) {
       _controller.dispose();
     }
     super.dispose();
+  }
+
+  int _activeFilterCount() {
+    var count = 0;
+    if (_controller.selectedCategory != null) count++;
+    if (_controller.selectedKecamatan != null) count++;
+    if (_controller.selectedKelurahan != null) count++;
+    if (_controller.onlineOnly) count++;
+    return count;
+  }
+
+  void _openSearch() {
+    setState(() => _isSearching = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _searchFocusNode.requestFocus();
+      }
+    });
+  }
+
+  void _closeSearch() {
+    _searchFocusNode.unfocus();
+    setState(() => _isSearching = false);
   }
 
   Future<void> _handleGroupTap(CctvCameraGroup group) async {
@@ -146,20 +174,97 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
         backgroundColor: tokens.surface,
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
-        title: Text(
-          title,
-          style: tokens.heading,
-        ),
+        leading: _isSearching
+            ? IconButton(
+                onPressed: _closeSearch,
+                icon: Icon(Icons.arrow_back_rounded, color: tokens.textPrimary),
+                tooltip: 'Tutup pencarian',
+              )
+            : null,
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                onChanged: _controller.setSearchQuery,
+                textInputAction: TextInputAction.search,
+                style: TextStyle(fontSize: 14, color: tokens.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Cari kamera, alamat, wilayah...',
+                  hintStyle: TextStyle(fontSize: 13.5, color: tokens.textMuted),
+                  border: InputBorder.none,
+                  isDense: true,
+                ),
+              )
+            : Text(
+                title,
+                style: tokens.heading,
+              ),
         actions: [
           ListenableBuilder(
             listenable: _controller,
-            builder: (_, __) => IconButton(
-              onPressed: _controller.isLoadingInitial
-                  ? null
-                  : () => _controller.loadInitialData(forceRefresh: true),
-              icon: Icon(Icons.refresh_rounded, color: tokens.textPrimary),
-              tooltip: 'Muat ulang daftar kamera',
-            ),
+            builder: (context, _) {
+              final filterCount = _activeFilterCount();
+              final hasCameras = _controller.cameras.isNotEmpty;
+
+              if (_isSearching) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_controller.searchQuery.isNotEmpty)
+                      IconButton(
+                        onPressed: () {
+                          _searchController.clear();
+                          _controller.setSearchQuery('');
+                        },
+                        icon: Icon(Icons.close_rounded, color: tokens.textMuted),
+                        tooltip: 'Hapus pencarian',
+                      ),
+                    if (hasCameras)
+                      _AppBarFilterButton(
+                        count: filterCount,
+                        tokens: tokens,
+                        onTap: () => showCctvFilterSheet(
+                          context: context,
+                          controller: _controller,
+                        ),
+                      ),
+                  ],
+                );
+              }
+
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (hasCameras) ...[
+                    IconButton(
+                      onPressed: _openSearch,
+                      icon: Icon(
+                        Icons.search_rounded,
+                        color: _controller.searchQuery.isNotEmpty
+                            ? tokens.primary
+                            : tokens.textPrimary,
+                      ),
+                      tooltip: 'Cari kamera CCTV',
+                    ),
+                    _AppBarFilterButton(
+                      count: filterCount,
+                      tokens: tokens,
+                      onTap: () => showCctvFilterSheet(
+                        context: context,
+                        controller: _controller,
+                      ),
+                    ),
+                  ],
+                  IconButton(
+                    onPressed: _controller.isLoadingInitial
+                        ? null
+                        : () => _controller.loadInitialData(forceRefresh: true),
+                    icon: Icon(Icons.refresh_rounded, color: tokens.textPrimary),
+                    tooltip: 'Muat ulang daftar kamera',
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -257,32 +362,24 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
             isActive: !_isFullscreenMapOpen,
           ),
 
-        // Full-bleed soft sections on phones (<600px), soft cards on tablets
+        // Compact Telemetry Bar directly beneath video
+        CctvTelemetryCard(
+          controller: _controller,
+          onRefreshStatus: () => _controller.checkAlive(forceRefresh: true),
+          onOpenMap: _openMapForActiveCamera,
+          isDesktopPanel: false,
+          isFullBleed: isFullBleed,
+        ),
+
+        // Full-height Map + Google Maps-style Draggable Camera List Sheet
         Expanded(
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            padding: isFullBleed
-                ? const EdgeInsets.only(bottom: 24)
-                : const EdgeInsets.fromLTRB(16, 16, 16, 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                CctvTelemetryCard(
-                  controller: _controller,
-                  onRefreshStatus: () =>
-                      _controller.checkAlive(forceRefresh: true),
-                  onOpenMap: _openMapForActiveCamera,
-                  isDesktopPanel: false,
-                  isFullBleed: isFullBleed,
-                ),
-                SizedBox(height: isFullBleed ? 10 : 14),
-                _buildDistributionSection(
-                  tokens,
-                  isDesktopSplitPane: false,
-                  isFullBleed: isFullBleed,
-                ),
-              ],
-            ),
+          child: CctvMapView(
+            controller: _controller,
+            mapController: _mapController,
+            isDesktopSplitPane: false,
+            isFullBleed: isFullBleed,
+            onGroupTap: _handleGroupTap,
+            onToggleFullscreen: _openFullscreenMap,
           ),
         ),
       ],
@@ -354,8 +451,8 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
             ? BorderRadius.zero
             : BorderRadius.circular(CctvTokens.radiusLg),
         border: isFullBleed
-            ? Border.symmetric(
-                horizontal: BorderSide(color: tokens.border),
+            ? Border(
+                bottom: BorderSide(color: tokens.border),
               )
             : Border.all(color: tokens.border),
         boxShadow: isFullBleed ? tokens.sectionShadow : tokens.cardShadow,
@@ -364,10 +461,11 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Soft Unified Filters (no redundant section title)
-          CctvFilterBar(controller: _controller),
-
-          if (isDesktopSplitPane) Divider(height: 1, color: tokens.divider),
+          // Desktop keeps inline FilterBar; Mobile uses AppBar Search + Filter sheet.
+          if (isDesktopSplitPane) ...[
+            CctvFilterBar(controller: _controller),
+            Divider(height: 1, color: tokens.divider),
+          ],
 
           // Interactive Map + Camera List (auto-visible by default)
           CctvMapView(
@@ -378,6 +476,62 @@ class _CctvPageState extends NyPage<CctvPage> with WidgetsBindingObserver {
             onGroupTap: _handleGroupTap,
             onToggleFullscreen: _openFullscreenMap,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class _AppBarFilterButton extends StatelessWidget {
+  final int count;
+  final CctvTokens tokens;
+  final VoidCallback onTap;
+
+  const _AppBarFilterButton({
+    required this.count,
+    required this.tokens,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = count > 0;
+
+    return IconButton(
+      onPressed: onTap,
+      tooltip: 'Filter CCTV',
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Icon(
+            Icons.tune_rounded,
+            color: isActive ? tokens.primary : tokens.textPrimary,
+          ),
+          if (isActive)
+            Positioned(
+              top: -4,
+              right: -5,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4.5, vertical: 1),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                decoration: BoxDecoration(
+                  color: tokens.primary,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: tokens.surface, width: 1.5),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    color: tokens.primaryOnFill,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    height: 1.1,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
