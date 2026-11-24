@@ -1,0 +1,122 @@
+{
+  "project_info": {
+    "project_number": "218524513016",
+    "project_id": "fcm-bakawan-rtlh",
+    "storage_bucket": "fcm-bakawan-rtlh.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:218524513016:android:31f3e0aa2af42e69d0410d",
+        "android_client_info": {
+          "package_name": "com.banjarmasinkota.app_bapintar_diskominfotik"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "218524513016-7nnbbcntdh85ufepd0am1cpo0d6dot89.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.banjarmasinkota.app_bapintar_diskominfotik",
+            "certificate_hash": "20b4036658e869e29414cd750ce261f97aff33b6"
+          }
+        },
+        {
+          "client_id": "218524513016-b7r1mu9rg67turu7ku5b1lt556734irc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.banjarmasinkota.app_bapintar_diskominfotik",
+            "certificate_hash": "2472d2adb4bffeeb2658df8ae1e3c75b4b79a07d"
+          }
+        },
+        {
+          "client_id": "218524513016-cc4ev7u1oiht2ah567t5vef7gnmk2kqs.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.banjarmasinkota.app_bapintar_diskominfotik",
+            "certificate_hash": "5e20d463cea7d3f47510d7c5e148c1abb8027f20"
+          }
+        },
+        {
+          "client_id": "218524513016-lcqa0pug264u569eku98r1qqg9odeah3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQ--YrhJjvdxJ968osHISj1SpoiUuGi4k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "218524513016-lcqa0pug264u569eku98r1qqg9odeah3.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "218524513016-qec50js933i7tj8glq6gmoud8838djn9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.banjarmasinkota.app-bapintar-diskominfotik"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:218524513016:android:385a3f90f756714dd0410d",
+        "android_client_info": {
+          "package_name": "com.diskominfotik.banjarmasinpintar"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "218524513016-8poajk25pjpod0armf4d57qv5cpchjnb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.diskominfotik.banjarmasinpintar",
+            "certificate_hash": "13f6a9cd2d24e47486446d105a236205fdaa8239"
+          }
+        },
+        {
+          "client_id": "218524513016-ifp7hr6t58gip3hidbhjvbinhfggrgml.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.diskominfotik.banjarmasinpintar",
+            "certificate_hash": "7ac88d29e94c3241765f3662ca663c97d02f0108"
+          }
+        },
+        {
+          "client_id": "218524513016-lcqa0pug264u569eku98r1qqg9odeah3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQ--YrhJjvdxJ968osHISj1SpoiUuGi4k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "218524513016-lcqa0pug264u569eku98r1qqg9odeah3.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "218524513016-qec50js933i7tj8glq6gmoud8838djn9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.banjarmasinkota.app-bapintar-diskominfotik"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

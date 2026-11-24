@@ -1,0 +1,54 @@
+{
+  "nylo": {
+    "form_picker": {
+      "clear": "Hapus",
+      "select": "Pilih"
+    },
+    "journey": {
+      "of": "dari",
+      "step": "Langkah",
+      "back": "Kembali",
+      "next": "Lanjut",
+      "finish": "Selesai"
+    },
+    "language_switcher": {
+      "title": "Pilih bahasa"
+    },
+    "collection_view": {
+      "no_results": "Data tidak ditemukan",
+      "pull_up": "Tarik untuk memuat lebih banyak",
+      "failed": "Gagal memuat data",
+      "release": "Lepaskan untuk memuat"
+    },
+    "confirm_action": {
+      "cancel": "Batal",
+      "confirm": "Ya"
+    },
+    "page_not_found": {
+      "title": "Halaman Tidak Ditemukan",
+      "message": "Maaf, halaman yang Anda minta tidak tersedia.",
+      "go_back": "Kembali"
+    },
+    "offline_banner": {
+      "message": "Tidak ada koneksi internet"
+    },
+    "toast": {
+      "success": "Berhasil",
+      "warning": "Peringatan",
+      "info": "Info",
+      "error": "Error",
+      "oops": "Oops",
+      "sorry": "Maaf",
+      "dismiss": "Tutup notifikasi"
+    }
+  },
+  "login_et_user_email": "Masukkan email",
+  "login_et_user_password": "Masukkan kata sandi",
+  "login_btn_forgot_password": "Lupa Kata Sandi?",
+  "login_btn_sign_in": "Masuk",
+  "login_error_fill_fields": "Harap isi semua kolom",
+  "home_tv_posts": "Berita",
+  "home_tv_error": "Error",
+  "home_tv_no_post_found": "Tidak ada data ditemukan",
+  "home_tv_choose_language": "Pilih Bahasa"
+}
