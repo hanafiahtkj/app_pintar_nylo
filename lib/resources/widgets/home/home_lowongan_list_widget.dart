@@ -100,17 +100,21 @@ class _HomeLowonganListWidgetState extends NyState<HomeLowonganListWidget> {
   }
 
   Widget _buildSkeletonList() {
-    return SingleChildScrollView(
-      child: Column(
-        children: List.generate(
-          1,
-          (index) => Container(
-            margin: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(5),
-            ),
-            height: 200,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return SizedBox(
+      height: 196,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        itemCount: 3,
+        itemBuilder: (_, __) => Container(
+          width: 265,
+          margin: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ),
@@ -125,11 +129,11 @@ class _HomeLowonganListWidgetState extends NyState<HomeLowonganListWidget> {
           : const NeverScrollableScrollPhysics(),
       child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            height: 320,
+          SizedBox(
+            height: 204,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               itemCount: _visibleLowongans.length,
               itemBuilder: (context, index) {
                 return _buildListItem(context, _visibleLowongans[index]);
@@ -147,174 +151,216 @@ class _HomeLowonganListWidgetState extends NyState<HomeLowonganListWidget> {
   }
 
   Widget _buildListItem(BuildContext context, Lowongan lowongan) {
-    final browserLauncher = ChromeSafariBrowserLauncher();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final accentBlue =
+        isDark ? const Color(0xFF6EA8FE) : const Color(0xFF1455D4);
+    final mutedColor =
+        isDark ? Colors.grey.shade400 : const Color(0xFF64748B);
+    final dividerColor =
+        theme.dividerColor.withValues(alpha: isDark ? 0.18 : 0.12);
+    final logoBg = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : const Color(0xFFF8FAFC);
 
-    bool isGajiValid = lowongan.gaji_minimum != null &&
+    final bool isGajiValid = lowongan.gaji_minimum != null &&
         lowongan.gaji_maksimum != null &&
-        lowongan.gaji_minimum != '0' &&
-        lowongan.gaji_maksimum != '0';
+        lowongan.gaji_minimum!.trim().isNotEmpty &&
+        lowongan.gaji_maksimum!.trim().isNotEmpty &&
+        lowongan.gaji_minimum!.trim() != '0' &&
+        lowongan.gaji_maksimum!.trim() != '0';
+
+    final salaryBg = isGajiValid
+        ? (isDark
+            ? const Color(0xFF16A34A).withValues(alpha: 0.18)
+            : const Color(0xFFECFDF5))
+        : (isDark
+            ? Colors.white.withValues(alpha: 0.07)
+            : const Color(0xFFF1F5F9));
+    final salaryColor = isGajiValid
+        ? (isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D))
+        : mutedColor;
 
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final cardWidth = (screenWidth * 0.82).clamp(250.0, 300.0);
+    final cardWidth = (screenWidth * 0.72).clamp(248.0, 280.0);
 
-    return GestureDetector(
-      onTap: () {
-        browserLauncher.openBrowser(
-          url: lowongan.url ?? '',
-          context: context,
-        );
-      },
-      child: Container(
-        width: cardWidth,
-        height: 260,
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade100),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
+    return Container(
+      width: cardWidth,
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? theme.cardColor : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: isDark
+            ? Border.all(color: theme.dividerColor.withValues(alpha: 0.16))
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A)
+                .withValues(alpha: isDark ? 0.22 : 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            ChromeSafariBrowserLauncher().openBrowser(
+              url: lowongan.url ?? '',
+              context: context,
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: logoBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: dividerColor),
+                      ),
+                      clipBehavior: Clip.antiAlias,
                       child: CachedNetworkImage(
                         imageUrl: lowongan.logo_perusahaan ?? '',
-                        width: 55,
-                        height: 55,
+                        width: 42,
+                        height: 42,
                         fit: BoxFit.cover,
-                        errorWidget: (context, url, error) => const Icon(
-                          Icons.business,
-                          color: Colors.grey,
-                          size: 30,
+                        errorWidget: (_, __, ___) => Icon(
+                          Icons.business_rounded,
+                          color: mutedColor,
+                          size: 20,
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            (lowongan.judul ?? 'Tanpa judul').trim(),
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              height: 1.25,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            (lowongan.nama_perusahaan ?? '-').trim(),
+                            style: TextStyle(
+                              color: accentBlue,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12.5,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          lowongan.judul ?? 'No title',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 14,
+                          color: mutedColor,
                         ),
-                        Text(
-                          lowongan.nama_perusahaan ?? 'No company',
-                          style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            (lowongan.lokasi ?? '-').trim(),
+                            style: TextStyle(
+                              color: mutedColor,
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 18,
-                        color: Colors.grey.shade600,
+                    const SizedBox(height: 7),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
                       ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          lowongan.lokasi ?? 'No location',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      decoration: BoxDecoration(
+                        color: salaryBg,
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Text(
+                        isGajiValid
+                            ? 'Rp ${lowongan.gaji_minimum} - ${lowongan.gaji_maksimum}'
+                            : 'Gaji Dirahasiakan',
+                        style: TextStyle(
+                          color: salaryColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 11,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
                     ),
-                    decoration: BoxDecoration(
-                      color: isGajiValid
-                          ? Colors.green.shade50
-                          : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Divider(height: 1, thickness: 0.7, color: dividerColor),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        (lowongan.tanggal_posting ?? '').trim(),
+                        style: TextStyle(
+                          color: mutedColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    child: Text(
-                      isGajiValid
-                          ? 'Rp ${lowongan.gaji_minimum} - ${lowongan.gaji_maksimum}'
-                          : 'Gaji Dirahasiakan',
+                    const SizedBox(width: 8),
+                    Text(
+                      'Banjarmasin Karir',
                       style: TextStyle(
-                        color: isGajiValid
-                            ? Colors.green.shade700
-                            : Colors.grey.shade700,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        color: accentBlue,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const Spacer(),
-            const Divider(height: 1, thickness: 0.5),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    lowongan.tanggal_posting ?? '',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                  Text(
-                    'Banjarmasin Karir',
-                    style: TextStyle(
-                      color: Colors.blue.shade400,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -165,51 +165,72 @@ class _HomeAppGridWidgetState extends NyState<HomeAppGridWidget> {
   }
 
   Widget _buildSeeAllItem(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final accent = isDark ? const Color(0xFF6EA8FE) : const Color(0xFF1455D4);
 
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         onTap: () {
           routeTo(CategoryPage.path);
         },
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 8.0),
-              alignment: Alignment.center,
-              child: AspectRatio(
-                aspectRatio: 1.0,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: isDark ? 0.16 : 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: accent.withValues(alpha: 0.18),
-                    ),
+              decoration: BoxDecoration(
+                color: isDark ? theme.cardColor : const Color(0xFFF4F6FA),
+                borderRadius: BorderRadius.circular(18),
+                border: isDark
+                    ? Border.all(
+                        color: theme.dividerColor.withValues(alpha: 0.16),
+                      )
+                    : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A)
+                        .withValues(alpha: isDark ? 0.22 : 0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
                   ),
-                  child: Icon(
-                    Icons.grid_view_rounded,
-                    color: accent,
-                    size: 24,
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: AspectRatio(
+                  aspectRatio: 1.0,
+                  child: Image.asset(
+                    'assets/icons/semua_layanan.png',
+                    fit: BoxFit.cover,
+                    color: isDark ? null : const Color(0xFFF4F6FA),
+                    colorBlendMode: isDark ? null : BlendMode.multiply,
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.grid_view_rounded,
+                      color: accent,
+                      size: 26,
+                    ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Semua',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 7.0, left: 4.0, right: 4.0),
+                child: Text(
+                  'Semua',
+                  style: theme.textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: accent,
+                    height: 1.25,
                   ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
           ],
         ),
@@ -229,9 +250,9 @@ class _HomeAppGridWidgetState extends NyState<HomeAppGridWidget> {
 
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         onTap: () {
           final isSso = app.is_sso == 1;
           final url = '${AppConfig.apiBaseUrl}/view/${app.slug}';
@@ -262,28 +283,31 @@ class _HomeAppGridWidgetState extends NyState<HomeAppGridWidget> {
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 8.0),
               decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: theme.dividerColor.withValues(
-                    alpha: isDark ? 0.2 : 0.12,
-                  ),
-                ),
+                color: isDark ? theme.cardColor : const Color(0xFFF4F6FA),
+                borderRadius: BorderRadius.circular(18),
+                border: isDark
+                    ? Border.all(
+                        color: theme.dividerColor.withValues(alpha: 0.16),
+                      )
+                    : null,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.06),
-                    blurRadius: 8,
+                    color: const Color(0xFF0F172A)
+                        .withValues(alpha: isDark ? 0.22 : 0.03),
+                    blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(18),
                 child: AspectRatio(
                   aspectRatio: 1.0,
                   child: CachedNetworkImage(
                     imageUrl: '${AppConfig.apiBaseUrl}/storage/${app.path}',
                     fit: BoxFit.cover,
+                    color: isDark ? null : const Color(0xFFF4F6FA),
+                    colorBlendMode: isDark ? null : BlendMode.multiply,
                     errorWidget: (context, url, error) => const Icon(
                       Icons.broken_image_outlined,
                       color: Colors.grey,
