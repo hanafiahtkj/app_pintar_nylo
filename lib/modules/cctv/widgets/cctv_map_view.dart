@@ -34,6 +34,16 @@ class _CctvMapViewState extends State<CctvMapView>
   int _lastFocusVersion = -1;
 
   late final AnimationController _rippleController;
+  NetworkTileProvider? _tileProvider;
+
+  NetworkTileProvider get _osmTileProvider =>
+      _tileProvider ??= NetworkTileProvider(
+        headers: {
+          'User-Agent':
+              'BanjarmasinPintar/3.0.9 (com.diskominfotik.banjarmasinpintar)',
+          'Referer': 'https://pintar.banjarmasinkota.go.id/',
+        },
+      );
 
   @override
   void initState() {
@@ -160,12 +170,11 @@ class _CctvMapViewState extends State<CctvMapView>
                     urlTemplate:
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.diskominfotik.banjarmasinpintar',
-                    tileProvider: NetworkTileProvider(
-                      headers: {
-                        'User-Agent':
-                            'BanjarmasinPintar/3.0.9 (com.diskominfotik.banjarmasinpintar)',
-                        'Referer': 'https://pintar.banjarmasinkota.go.id/',
-                      },
+                    tileProvider: _osmTileProvider,
+                    evictErrorTileStrategy: EvictErrorTileStrategy.dispose,
+                    panBuffer: 1,
+                    tileDisplay: const TileDisplay.fadeIn(
+                      duration: Duration(milliseconds: 120),
                     ),
                     maxZoom: 19,
                   ),

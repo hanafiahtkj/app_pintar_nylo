@@ -25,10 +25,20 @@ class _CctvFullscreenMapPageState extends State<CctvFullscreenMapPage>
     with SingleTickerProviderStateMixin {
   final MapController _mapController = MapController();
   late final AnimationController _rippleController;
+  NetworkTileProvider? _tileProvider;
   CctvCamera? _previewCamera;
   bool _isInlinePlaying = false;
   bool _showDesktopList = false;
   bool _mapReady = false;
+
+  NetworkTileProvider get _osmTileProvider =>
+      _tileProvider ??= NetworkTileProvider(
+        headers: {
+          'User-Agent':
+              'BanjarmasinPintar/3.0.9 (com.diskominfotik.banjarmasinpintar)',
+          'Referer': 'https://pintar.banjarmasinkota.go.id/',
+        },
+      );
 
   @override
   void initState() {
@@ -412,12 +422,11 @@ class _CctvFullscreenMapPageState extends State<CctvFullscreenMapPage>
                             'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName:
                             'com.diskominfotik.banjarmasinpintar',
-                        tileProvider: NetworkTileProvider(
-                          headers: {
-                            'User-Agent':
-                                'BanjarmasinPintar/3.0.9 (com.diskominfotik.banjarmasinpintar)',
-                            'Referer': 'https://pintar.banjarmasinkota.go.id/',
-                          },
+                        tileProvider: _osmTileProvider,
+                        evictErrorTileStrategy: EvictErrorTileStrategy.dispose,
+                        panBuffer: 1,
+                        tileDisplay: const TileDisplay.fadeIn(
+                          duration: Duration(milliseconds: 120),
                         ),
                         maxZoom: 19,
                       ),

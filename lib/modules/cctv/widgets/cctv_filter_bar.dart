@@ -225,14 +225,16 @@ class _CctvFilterBarState extends State<CctvFilterBar> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Row 1: Soft Category + Quick Utility Pills (Favorit, Online Saja, Terdekat)
+              // Row 1: Soft Category + Quick Utility Pills (Opsi 1: Icon + Soft Tint + Count Badge)
               SizedBox(
                 height: 38,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
                     _CategoryPill(
-                      label: 'Semua (${ctrl.wilayahFilteredList.length})',
+                      icon: Icons.grid_view_rounded,
+                      label: 'Semua',
+                      count: ctrl.wilayahFilteredList.length,
                       selected:
                           ctrl.selectedCategory == null && !ctrl.favoritesOnly,
                       tokens: tokens,
@@ -242,10 +244,11 @@ class _CctvFilterBarState extends State<CctvFilterBar> {
                       const SizedBox(width: 8),
                       _QuickTogglePill(
                         icon: Icons.star_rounded,
-                        label: 'Favorit (${ctrl.favoriteCount})',
+                        label: 'Favorit',
+                        count: ctrl.favoriteCount,
                         active: ctrl.favoritesOnly,
-                        activeBg: const Color(0xFFF59E0B),
-                        activeFg: Colors.white,
+                        activeAccent: const Color(0xFFD97706),
+                        inactiveIconColor: const Color(0xFFF59E0B),
                         tokens: tokens,
                         onTap: () => ctrl.setFavoritesOnly(!ctrl.favoritesOnly),
                       ),
@@ -253,8 +256,9 @@ class _CctvFilterBarState extends State<CctvFilterBar> {
                     const SizedBox(width: 8),
                     for (final cat in ctrl.categories) ...[
                       _CategoryPill(
-                        label:
-                            '${cat.displayName} (${ctrl.countForCategory(cat.uuid)})',
+                        icon: _iconForCategory(cat.name),
+                        label: cat.displayName,
+                        count: ctrl.countForCategory(cat.uuid),
                         selected: ctrl.selectedCategory == cat.uuid &&
                             !ctrl.favoritesOnly,
                         tokens: tokens,
@@ -262,13 +266,22 @@ class _CctvFilterBarState extends State<CctvFilterBar> {
                       ),
                       const SizedBox(width: 8),
                     ],
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: Center(
+                        child: Container(
+                          width: 1,
+                          height: 18,
+                          color: tokens.border,
+                        ),
+                      ),
+                    ),
                     _QuickTogglePill(
                       icon: Icons.circle,
                       iconSize: 8,
                       label: 'Online Saja',
                       active: ctrl.onlineOnly,
-                      activeBg: tokens.online,
-                      activeFg: Colors.white,
+                      activeAccent: tokens.online,
                       inactiveIconColor: tokens.online,
                       tokens: tokens,
                       onTap: () => ctrl.setOnlineOnly(!ctrl.onlineOnly),
@@ -278,8 +291,7 @@ class _CctvFilterBarState extends State<CctvFilterBar> {
                       icon: Icons.near_me_rounded,
                       label: ctrl.isLocating ? 'Mencari...' : 'Terdekat',
                       active: ctrl.sortByNearest,
-                      activeBg: tokens.primary,
-                      activeFg: tokens.primaryOnFill,
+                      activeAccent: tokens.primary,
                       loading: ctrl.isLocating,
                       tokens: tokens,
                       onTap: ctrl.toggleSortByNearest,
@@ -453,13 +465,52 @@ class _CctvFilterBarState extends State<CctvFilterBar> {
   }
 }
 
+IconData _iconForCategory(String rawName) {
+  final name = rawName.trim().toLowerCase();
+  if (name.contains('atcs') ||
+      name.contains('lalu lintas') ||
+      name.contains('traffic') ||
+      name.contains('jalan') ||
+      name.contains('simpang')) {
+    return Icons.traffic_rounded;
+  }
+  if (name.contains('publik') ||
+      name.contains('taman') ||
+      name.contains('siring')) {
+    return Icons.park_rounded;
+  }
+  if (name.contains('sungai') ||
+      name.contains('air') ||
+      name.contains('wisata')) {
+    return Icons.water_rounded;
+  }
+  if (name.contains('pasar') || name.contains('niaga')) {
+    return Icons.storefront_rounded;
+  }
+  if (name.contains('kantor') ||
+      name.contains('pemko') ||
+      name.contains('pelayanan') ||
+      name.contains('fasilitas')) {
+    return Icons.account_balance_rounded;
+  }
+  if (name.contains('sekolah') || name.contains('pendidikan')) {
+    return Icons.school_rounded;
+  }
+  if (name.contains('kesehatan') ||
+      name.contains('puskesmas') ||
+      name.contains('rumah sakit')) {
+    return Icons.local_hospital_rounded;
+  }
+  return Icons.videocam_rounded;
+}
+
 class _QuickTogglePill extends StatelessWidget {
   final IconData icon;
   final double iconSize;
   final String label;
+  final int? count;
   final bool active;
-  final Color activeBg;
-  final Color activeFg;
+  final Color activeAccent;
   final Color? inactiveIconColor;
   final bool loading;
   final CctvTokens tokens;
@@ -469,9 +520,9 @@ class _QuickTogglePill extends StatelessWidget {
     required this.icon,
     this.iconSize = 14,
     required this.label,
+    this.count,
     required this.active,
-    required this.activeBg,
-    required this.activeFg,
+    required this.activeAccent,
     this.inactiveIconColor,
     this.loading = false,
     required this.tokens,
@@ -480,20 +531,31 @@ class _QuickTogglePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = active ? activeBg : tokens.surfaceSubtle;
-    final fg = active ? activeFg : tokens.textSecondary;
+    final bg = active
+        ? activeAccent.withValues(alpha: tokens.isDark ? 0.22 : 0.12)
+        : tokens.surfaceSubtle;
+    final fg = active ? activeAccent : tokens.textSecondary;
+    final borderColor = active
+        ? activeAccent.withValues(alpha: 0.45)
+        : tokens.border.withValues(alpha: 0.55);
 
     return Semantics(
       button: true,
       selected: active,
       child: Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(CctvTokens.radiusPill),
+        color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(CctvTokens.radiusPill),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 13),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.fromLTRB(12, 0, count != null ? 8 : 12, 0),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(CctvTokens.radiusPill),
+              border: Border.all(color: borderColor, width: active ? 1.15 : 1),
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -510,17 +572,27 @@ class _QuickTogglePill extends StatelessWidget {
                   Icon(
                     icon,
                     size: iconSize,
-                    color: active ? fg : (inactiveIconColor ?? fg),
+                    color: active ? fg : (inactiveIconColor ?? tokens.textMuted),
                   ),
                 const SizedBox(width: 6),
                 Text(
                   label,
                   style: TextStyle(
                     fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w600,
                     color: fg,
                   ),
                 ),
+                if (count != null) ...[
+                  const SizedBox(width: 6),
+                  _PillCountBadge(
+                    count: count!,
+                    active: active,
+                    activeBg: activeAccent,
+                    activeFg: Colors.white,
+                    tokens: tokens,
+                  ),
+                ],
               ],
             ),
           ),
@@ -531,13 +603,17 @@ class _QuickTogglePill extends StatelessWidget {
 }
 
 class _CategoryPill extends StatelessWidget {
+  final IconData icon;
   final String label;
+  final int count;
   final bool selected;
   final CctvTokens tokens;
   final VoidCallback onTap;
 
   const _CategoryPill({
+    required this.icon,
     required this.label,
+    required this.count,
     required this.selected,
     required this.tokens,
     required this.onTap,
@@ -545,31 +621,98 @@ class _CategoryPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? tokens.primary : tokens.surfaceSubtle;
-    final fg = selected ? tokens.primaryOnFill : tokens.textSecondary;
+    final bg = selected ? tokens.primarySoft : tokens.surfaceSubtle;
+    final fg = selected ? tokens.primary : tokens.textSecondary;
+    final borderColor = selected
+        ? tokens.primary.withValues(alpha: 0.45)
+        : tokens.border.withValues(alpha: 0.55);
 
     return Semantics(
       button: true,
       selected: selected,
       child: Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(CctvTokens.radiusPill),
+        color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(CctvTokens.radiusPill),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 15),
-            child: Center(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: fg,
-                ),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(CctvTokens.radiusPill),
+              border: Border.all(
+                color: borderColor,
+                width: selected ? 1.15 : 1,
               ),
             ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 14.5,
+                  color: selected ? tokens.primary : tokens.textMuted,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    color: fg,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                _PillCountBadge(
+                  count: count,
+                  active: selected,
+                  activeBg: tokens.primary,
+                  activeFg: tokens.primaryOnFill,
+                  tokens: tokens,
+                ),
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PillCountBadge extends StatelessWidget {
+  final int count;
+  final bool active;
+  final Color activeBg;
+  final Color activeFg;
+  final CctvTokens tokens;
+
+  const _PillCountBadge({
+    required this.count,
+    required this.active,
+    required this.activeBg,
+    required this.activeFg,
+    required this.tokens,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 2),
+      decoration: BoxDecoration(
+        color: active
+            ? activeBg
+            : tokens.surface.withValues(alpha: tokens.isDark ? 0.55 : 0.9),
+        borderRadius: BorderRadius.circular(CctvTokens.radiusPill),
+      ),
+      child: Text(
+        '$count',
+        style: TextStyle(
+          fontSize: 10.5,
+          height: 1.15,
+          fontWeight: FontWeight.w700,
+          color: active ? activeFg : tokens.textMuted,
         ),
       ),
     );
