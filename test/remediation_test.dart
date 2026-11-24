@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nylo_framework/nylo_framework.dart';
+import 'package:app_pintar_nylo/app/models/layanan_app.dart';
 import 'package:app_pintar_nylo/app/models/notification_item.dart';
 import 'package:app_pintar_nylo/app/models/notification_page_response.dart';
+import 'package:app_pintar_nylo/app/services/native_service_registry.dart';
 import 'package:app_pintar_nylo/app/services/pending_app_service.dart';
 import 'package:app_pintar_nylo/app/services/service_launcher_service.dart';
+import 'package:app_pintar_nylo/modules/native_service_module.dart';
 import 'package:app_pintar_nylo/bootstrap/env.g.dart';
 import 'package:app_pintar_nylo/bootstrap/providers.dart';
 import 'package:app_pintar_nylo/resources/pages/app_page.dart';
@@ -198,5 +201,49 @@ void main() {
         'https://berita.banjarmasinkota.go.id/detail?id=10&ref=home',
       );
     });
+
+    test('LayananApp parses is_native defensively and routes native only when registered',
+        () {
+      expect(LayananApp.fromJson({'slug': 'cctv', 'is_native': 1}).isNative, isTrue);
+      expect(LayananApp.fromJson({'slug': 'cctv', 'is_native': true}).isNative, isTrue);
+      expect(LayananApp.fromJson({'slug': 'cctv', 'is_native': '1'}).isNative, isTrue);
+      expect(LayananApp.fromJson({'slug': 'cctv', 'is_native': 'true'}).isNative, isTrue);
+      expect(LayananApp.fromJson({'slug': 'cctv', 'is_native': 0}).isNative, isFalse);
+      expect(LayananApp.fromJson({'slug': 'cctv'}).isNative, isFalse);
+
+      final nativeApp = LayananApp.fromJson({'slug': 'demo-native', 'is_native': 1});
+      final webApp = LayananApp.fromJson({'slug': 'demo-native', 'is_native': 0});
+
+      // Belum terdaftar di registry -> tetap fallback ke web
+      expect(ServiceLauncherService.shouldOpenNative(nativeApp), isFalse);
+
+      // Daftarkan modul dummy -> is_native=1 buka native, is_native=0 tetap web
+      final dummyModule = _DummyNativeModule('demo-native');
+      NativeServiceRegistry().registerModule(dummyModule);
+      addTearDown(() => NativeServiceRegistry().unregisterModule('demo-native'));
+
+      expect(ServiceLauncherService.shouldOpenNative(nativeApp), isTrue);
+      expect(ServiceLauncherService.shouldOpenNative(webApp), isFalse);
+
+      // PendingApp menyimpan isNative
+      final pending = PendingApp.fromJson(
+        PendingApp(slug: 'demo-native', nama: 'Demo', isNative: true).toJson(),
+      );
+      expect(pending.isNative, isTrue);
+    });
   });
+}
+
+class _DummyNativeModule extends NativeServiceModule {
+  final String _slug;
+  _DummyNativeModule(this._slug);
+
+  @override
+  String get slug => _slug;
+
+  @override
+  void registerRoutes(NyRouter router) {}
+
+  @override
+  Future<void> open(BuildContext context, LayananApp app) async {}
 }

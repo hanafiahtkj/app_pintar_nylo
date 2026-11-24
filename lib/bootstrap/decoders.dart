@@ -14,6 +14,7 @@ import '/app/models/urgent_notification.dart';
 import '/app/models/user.dart';
 import '/app/networking/karier_api_service.dart';
 import '/app/networking/pintar_api_service.dart';
+import '/app/services/native_service_registry.dart';
 
 List<dynamic> _extractList(dynamic data) {
   if (data is List) return data;
@@ -60,13 +61,16 @@ final Map<Type, dynamic> modelDecoders = {
       .map((json) => NotificationItem.fromJson(json))
       .toList(),
   NotificationPageResponse: (data) => NotificationPageResponse.fromJson(data),
+  ...NativeServiceRegistry().allModelDecoders,
 };
 
 final Map<Type, dynamic> apiDecoders = {
   PintarApiService: () => PintarApiService(),
   KarierApiService: () => KarierApiService(),
+  ...NativeServiceRegistry().allApiDecoders,
 };
 
 final Map<Type, dynamic> controllers = {
   HomeController: () => HomeController(),
+  ...NativeServiceRegistry().allControllers,
 };

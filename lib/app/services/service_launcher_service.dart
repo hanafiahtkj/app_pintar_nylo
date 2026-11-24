@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '/app/models/layanan_app.dart';
 import '/app/services/auth_service.dart';
 import '/app/services/chrome_safari_browser_service.dart';
+import '/app/services/native_service_registry.dart';
 import '/app/services/pending_app_service.dart';
 import '/config/app.dart';
 
@@ -21,6 +22,13 @@ class ServiceLauncherService {
     return '${AppConfig.apiBaseUrl}/view/news?base_url=$encoded';
   }
 
+  /// Bernilai `true` hanya jika API menandai `is_native` aktif DAN modul native
+  /// untuk `app.slug` terdaftar di [NativeServiceRegistry].
+  static bool shouldOpenNative(LayananApp app) {
+    if (!app.isNative) return false;
+    return NativeServiceRegistry().hasModule(app.slug);
+  }
+
   static Future<void> openLayananApp(
     BuildContext context,
     LayananApp app,
@@ -28,19 +36,22 @@ class ServiceLauncherService {
     final slug = (app.slug ?? '').trim();
     final url = buildLayananUrl(slug);
     if (url == null) {
-      _showUnavailableMessage(context, 'Tautan layanan tidak tersedia saat ini.');
+      _showUnavailableMessage(
+        context,
+        'Tautan layanan tidak tersedia saat ini.',
+      );
       return;
     }
 
     final browserLauncher = ChromeSafariBrowserLauncher();
-    final isSso = app.is_sso == 1;
 
-    if (isSso && !AuthService().isLoggedIn) {
+    if (app.isSso && !AuthService().isLoggedIn) {
       PendingAppService().set(
         PendingApp(
           slug: slug,
           baseUrlSso: url,
           nama: app.nama,
+          isNative: app.isNative,
         ),
       );
       await browserLauncher.openBrowser(
@@ -48,6 +59,14 @@ class ServiceLauncherService {
         context: context,
       );
       return;
+    }
+
+    if (shouldOpenNative(app)) {
+      final module = NativeServiceRegistry().findModule(slug);
+      if (module != null) {
+        await module.open(context, app);
+        return;
+      }
     }
 
     await browserLauncher.openBrowser(

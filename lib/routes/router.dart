@@ -1,3 +1,4 @@
+import '/app/services/native_service_registry.dart';
 import '/resources/pages/app_page.dart';
 import '/resources/pages/category_page.dart';
 import '/resources/pages/emergency_page.dart';
@@ -24,6 +25,9 @@ NyRouter appRouter() => nyRoutes((NyRouter router) {
       router.add(NotificationDetailPage.path);
       router.add(ProfilePage.path);
       router.add(NotificationSettingsPage.path);
+
+      // Route milik modul layanan native terdaftar di `lib/config/native_modules.dart`
+      NativeServiceRegistry().registerAllRoutes(router);
 
       router.add(NotFoundPage.path).unknownRoute();
     });
