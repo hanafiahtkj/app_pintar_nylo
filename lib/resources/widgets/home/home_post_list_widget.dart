@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:nylo_framework/nylo_framework.dart';
 import '/app/models/post.dart';
 import '/app/networking/pintar_api_service.dart';
-import '/app/services/chrome_safari_browser_service.dart';
-import '/config/app.dart';
+import '/app/services/service_launcher_service.dart';
 
 class HomePostListWidget extends StatefulWidget {
   final bool isScrollEnabled;
@@ -154,19 +153,12 @@ class _HomePostListWidgetState extends NyState<HomePostListWidget> {
   }
 
   Widget _buildListItem(BuildContext context, Post post) {
-    final browserLauncher = ChromeSafariBrowserLauncher();
-
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final cardWidth = (MediaQuery.sizeOf(context).width * 0.78).clamp(240.0, 280.0);
 
     return GestureDetector(
-      onTap: () {
-        browserLauncher.openBrowser(
-          url: '${AppConfig.apiBaseUrl}/view/news?base_url=${post.url ?? ''}',
-          context: context,
-        );
-      },
+      onTap: () => ServiceLauncherService.openNews(context, post.url),
       child: Container(
         width: cardWidth,
         margin: const EdgeInsets.only(right: 14),

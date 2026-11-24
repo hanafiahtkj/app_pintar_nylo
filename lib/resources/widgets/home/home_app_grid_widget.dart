@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:nylo_framework/nylo_framework.dart';
 import '/app/models/layanan_app.dart';
 import '/app/networking/pintar_api_service.dart';
-import '/app/services/auth_service.dart';
-import '/app/services/chrome_safari_browser_service.dart';
-import '/app/services/pending_app_service.dart';
+import '/app/services/service_launcher_service.dart';
 import '/config/app.dart';
 import '/resources/pages/category_page.dart';
 
@@ -237,7 +235,6 @@ class _HomeAppGridWidgetState extends NyState<HomeAppGridWidget> {
   }
 
   Widget _buildGridItem(BuildContext context, int position) {
-    final browserLauncher = ChromeSafariBrowserLauncher();
     final app = _apps?[position];
     if (app == null) {
       return const SizedBox.shrink();
@@ -251,31 +248,7 @@ class _HomeAppGridWidgetState extends NyState<HomeAppGridWidget> {
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () {
-          final isSso = app.is_sso == 1;
-          final url = '${AppConfig.apiBaseUrl}/view/${app.slug}';
-          if (isSso && !AuthService().isLoggedIn) {
-            PendingAppService().set(
-              PendingApp(
-                slug: app.slug,
-                baseUrlSso: url,
-                nama: app.nama,
-              ),
-            );
-            browserLauncher.openBrowser(
-              url: AppConfig.ssoRegisUrl,
-              context: context,
-            );
-            return;
-          }
-
-          if (url.isNotEmpty) {
-            browserLauncher.openBrowser(
-              url: url,
-              context: context,
-            );
-          }
-        },
+        onTap: () => ServiceLauncherService.openLayananApp(context, app),
         child: Column(
           children: [
             Container(

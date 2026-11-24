@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:nylo_framework/nylo_framework.dart';
 import '/app/models/layanan_app.dart';
 import '/app/networking/pintar_api_service.dart';
-import '/app/services/auth_service.dart';
-import '/app/services/chrome_safari_browser_service.dart';
-import '/app/services/pending_app_service.dart';
+import '/app/services/service_launcher_service.dart';
 import '/config/app.dart';
 
 class AppListWidget extends StatefulWidget {
@@ -241,7 +239,6 @@ class _AppListWidgetState extends NyState<AppListWidget> {
     LayananApp app, {
     required double itemWidth,
   }) {
-    final browserLauncher = ChromeSafariBrowserLauncher();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -268,31 +265,7 @@ class _AppListWidgetState extends NyState<AppListWidget> {
           borderRadius: BorderRadius.circular(16),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
-            onTap: () {
-              final isSso = app.is_sso == 1;
-              final url = '${AppConfig.apiBaseUrl}/view/${app.slug}';
-              if (isSso && !AuthService().isLoggedIn) {
-                PendingAppService().set(
-                  PendingApp(
-                    slug: app.slug,
-                    baseUrlSso: url,
-                    nama: app.nama,
-                  ),
-                );
-                browserLauncher.openBrowser(
-                  url: AppConfig.ssoRegisUrl,
-                  context: context,
-                );
-                return;
-              }
-
-              if (url.isNotEmpty) {
-                browserLauncher.openBrowser(
-                  url: url,
-                  context: context,
-                );
-              }
-            },
+            onTap: () => ServiceLauncherService.openLayananApp(context, app),
             borderRadius: BorderRadius.circular(16),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),

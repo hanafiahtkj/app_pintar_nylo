@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:nylo_framework/nylo_framework.dart';
 import '/app/models/post.dart';
 import '/app/networking/pintar_api_service.dart';
-import '/app/services/chrome_safari_browser_service.dart';
-import '/config/app.dart';
+import '/app/services/service_launcher_service.dart';
 
 class PostPage extends NyStatefulWidget {
   static RouteView path = ('/post', (_) => PostPage());
@@ -337,12 +336,7 @@ class _PostPageState extends NyPage<PostPage> {
       borderRadius: BorderRadius.circular(14),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () {
-          ChromeSafariBrowserLauncher().openBrowser(
-            url: '${AppConfig.apiBaseUrl}/view/news?base_url=${post.url ?? ''}',
-            context: context,
-          );
-        },
+        onTap: () => ServiceLauncherService.openNews(context, post.url),
         child: Ink(
           decoration: BoxDecoration(
             color: theme.cardColor,

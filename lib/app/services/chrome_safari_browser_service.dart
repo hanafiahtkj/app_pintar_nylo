@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ChromeSafariBrowserLauncher {
   static final ChromeSafariBrowserLauncher _instance =
@@ -22,25 +24,26 @@ class ChromeSafariBrowserLauncher {
   }) async {
     final uri = Uri.tryParse(url.trim());
     if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      _showErrorSnackBar(context, 'Tautan tidak valid atau tidak tersedia.');
       return;
     }
 
     if (!context.mounted) return;
-    _showLoadingDialog(context);
 
     final browser = _browserInstance;
     browser.setContext(context);
     browser.setLauncher(this);
+    browser.showLoadingDialog(context);
+
+    final newUri = uri.replace(queryParameters: {
+      ...uri.queryParameters,
+      'customtab': 'true',
+    });
 
     try {
       if (browser.browserOpened) {
         await browser.close();
       }
-
-      final newUri = uri.replace(queryParameters: {
-        ...uri.queryParameters,
-        'customtab': 'true',
-      });
 
       await browser.open(
         url: WebUri(newUri.toString()),
@@ -55,21 +58,29 @@ class ChromeSafariBrowserLauncher {
       );
     } catch (_) {
       browser.dismissLoadingDialog();
+      final launched = await _launchExternalFallback(newUri);
+      if (!launched && context.mounted) {
+        _showErrorSnackBar(
+          context,
+          'Tidak dapat membuka tautan. Pastikan browser tersedia di perangkat Anda.',
+        );
+      }
     }
   }
 
-  void _showLoadingDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return PopScope(
-          canPop: false,
-          child: const Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
-      },
+  Future<bool> _launchExternalFallback(Uri uri) async {
+    try {
+      if (await canLaunchUrl(uri)) {
+        return await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  void _showErrorSnackBar(BuildContext context, String message) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -84,6 +95,8 @@ class ChromeSafariBrowserLauncher {
 
 class MyChromeSafariBrowser extends ChromeSafariBrowser {
   bool browserOpened = false;
+  bool _isLoadingDialogShowing = false;
+  Timer? _loadingTimeoutTimer;
   BuildContext? _context;
   ChromeSafariBrowserLauncher? _launcher;
 
@@ -95,10 +108,46 @@ class MyChromeSafariBrowser extends ChromeSafariBrowser {
     _launcher = launcher;
   }
 
+  void showLoadingDialog(BuildContext context) {
+    if (_isLoadingDialogShowing || !context.mounted) return;
+    _isLoadingDialogShowing = true;
+    _loadingTimeoutTimer?.cancel();
+    _loadingTimeoutTimer = Timer(
+      const Duration(seconds: 10),
+      dismissLoadingDialog,
+    );
+
+    showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return const PopScope(
+          canPop: false,
+          child: Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      },
+    ).whenComplete(() {
+      _isLoadingDialogShowing = false;
+      _loadingTimeoutTimer?.cancel();
+    });
+  }
+
   void dismissLoadingDialog() {
-    if (_context != null && _context!.mounted) {
-      Navigator.of(_context!).pop();
-      _context = null;
+    _loadingTimeoutTimer?.cancel();
+    _loadingTimeoutTimer = null;
+    if (!_isLoadingDialogShowing) return;
+    _isLoadingDialogShowing = false;
+
+    final ctx = _context;
+    _context = null;
+    if (ctx != null && ctx.mounted) {
+      final navigator = Navigator.of(ctx, rootNavigator: true);
+      if (navigator.canPop()) {
+        navigator.pop();
+      }
     }
   }
 

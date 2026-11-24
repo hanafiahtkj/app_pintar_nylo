@@ -4,6 +4,7 @@ import 'package:nylo_framework/nylo_framework.dart';
 import 'package:app_pintar_nylo/app/models/notification_item.dart';
 import 'package:app_pintar_nylo/app/models/notification_page_response.dart';
 import 'package:app_pintar_nylo/app/services/pending_app_service.dart';
+import 'package:app_pintar_nylo/app/services/service_launcher_service.dart';
 import 'package:app_pintar_nylo/bootstrap/env.g.dart';
 import 'package:app_pintar_nylo/bootstrap/providers.dart';
 import 'package:app_pintar_nylo/resources/pages/app_page.dart';
@@ -172,4 +173,30 @@ void main() {
       expect(tileRect.width, lessThanOrEqualTo(760));
     },
   );
+
+  group('ServiceLauncherService URL Guards & Encoding', () {
+    test('buildLayananUrl rejects null/blank slugs and builds valid path', () {
+      expect(ServiceLauncherService.buildLayananUrl(null), isNull);
+      expect(ServiceLauncherService.buildLayananUrl('   '), isNull);
+      expect(
+        ServiceLauncherService.buildLayananUrl('cctv'),
+        endsWith('/view/cctv'),
+      );
+    });
+
+    test('buildNewsViewUrl encodes query params and rejects blank urls', () {
+      expect(ServiceLauncherService.buildNewsViewUrl(null), isNull);
+      expect(ServiceLauncherService.buildNewsViewUrl('  '), isNull);
+
+      final built = ServiceLauncherService.buildNewsViewUrl(
+        'https://berita.banjarmasinkota.go.id/detail?id=10&ref=home',
+      );
+      expect(built, isNotNull);
+      final parsed = Uri.parse(built!);
+      expect(
+        parsed.queryParameters['base_url'],
+        'https://berita.banjarmasinkota.go.id/detail?id=10&ref=home',
+      );
+    });
+  });
 }
