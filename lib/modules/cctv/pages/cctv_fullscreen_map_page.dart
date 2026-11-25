@@ -6,6 +6,7 @@ import '/modules/cctv/models/cctv_camera.dart';
 import '/modules/cctv/models/cctv_camera_group.dart';
 import '/modules/cctv/services/cctv_local_service.dart';
 import '/modules/cctv/widgets/cctv_group_picker_sheet.dart';
+import '/modules/cctv/widgets/cctv_map_marker.dart';
 import '/modules/cctv/widgets/cctv_player_stage.dart';
 import '/modules/cctv/widgets/cctv_theme_tokens.dart';
 
@@ -46,7 +47,7 @@ class _CctvFullscreenMapPageState extends State<CctvFullscreenMapPage>
     _previewCamera = widget.controller.activeCamera;
     _rippleController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 2200),
     )..repeat();
   }
 
@@ -428,22 +429,34 @@ class _CctvFullscreenMapPageState extends State<CctvFullscreenMapPage>
                       ),
                       MarkerLayer(
                         markers: [
-                          for (final group in mapGroups)
-                            Marker(
-                              point: LatLng(group.latitude, group.longitude),
-                              width: 46,
-                              height: 46,
-                              alignment: Alignment.center,
-                              child: _FullscreenMarker(
-                                group: group,
-                                isActive: group.containsCamera(highlightedId),
-                                aliveStatus: group
-                                    .aliveStatus(widget.controller.aliveStatus),
-                                tokens: tokens,
-                                rippleAnimation: _rippleController,
-                                onTap: () => _handleGroupTap(group),
-                              ),
+                          for (final group in [
+                            ...mapGroups.where(
+                              (g) => !g.containsCamera(highlightedId),
                             ),
+                            ...mapGroups.where(
+                              (g) => g.containsCamera(highlightedId),
+                            ),
+                          ])
+                            () {
+                              final isActive =
+                                  group.containsCamera(highlightedId);
+                              return Marker(
+                                point: LatLng(group.latitude, group.longitude),
+                                width: isActive ? 96 : 46,
+                                height: isActive ? 96 : 46,
+                                alignment: Alignment.center,
+                                child: CctvMapMarker(
+                                  group: group,
+                                  isActive: isActive,
+                                  aliveStatus: group.aliveStatus(
+                                    widget.controller.aliveStatus,
+                                  ),
+                                  tokens: tokens,
+                                  rippleAnimation: _rippleController,
+                                  onTap: () => _handleGroupTap(group),
+                                ),
+                              );
+                            }(),
                         ],
                       ),
                     ],
@@ -1043,123 +1056,6 @@ class _HudPillButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _FullscreenMarker extends StatelessWidget {
-  final CctvCameraGroup group;
-  final bool isActive;
-  final bool? aliveStatus;
-  final CctvTokens tokens;
-  final Animation<double> rippleAnimation;
-  final VoidCallback onTap;
-
-  const _FullscreenMarker({
-    required this.group,
-    required this.isActive,
-    required this.aliveStatus,
-    required this.tokens,
-    required this.rippleAnimation,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isOffline = aliveStatus == false;
-    final Color bg;
-    final Color border;
-    final Color iconColor;
-
-    if (isOffline) {
-      bg = tokens.offline;
-      border = tokens.offline;
-      iconColor = Colors.white;
-    } else if (isActive) {
-      bg = tokens.primary;
-      border = tokens.primary;
-      iconColor = tokens.primaryOnFill;
-    } else {
-      bg = tokens.surfaceElevated;
-      border = tokens.border;
-      iconColor = tokens.textSecondary;
-    }
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        alignment: Alignment.center,
-        clipBehavior: Clip.none,
-        children: [
-          if (isActive)
-            AnimatedBuilder(
-              animation: rippleAnimation,
-              builder: (context, _) {
-                final t = rippleAnimation.value;
-                return Transform.scale(
-                  scale: 0.8 + (t * 0.85),
-                  child: Opacity(
-                    opacity: (1.0 - t) * 0.45,
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: isOffline ? tokens.offline : tokens.primary,
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          AnimatedScale(
-            scale: isActive ? 1.12 : 1.0,
-            duration: const Duration(milliseconds: 200),
-            child: Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: border, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Icon(Icons.videocam_rounded, size: 16, color: iconColor),
-            ),
-          ),
-          if (group.isMultiCamera)
-            Positioned(
-              top: 2,
-              right: 2,
-              child: Container(
-                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: tokens.primary,
-                  borderRadius: BorderRadius.circular(9),
-                  border: Border.all(color: Colors.white, width: 1.4),
-                ),
-                child: Center(
-                  child: Text(
-                    '${group.cameras.length}',
-                    style: TextStyle(
-                      color: tokens.primaryOnFill,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      height: 1.1,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }
