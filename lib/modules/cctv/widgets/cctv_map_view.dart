@@ -369,7 +369,7 @@ class _CctvMapViewState extends State<CctvMapView>
             constraints.maxHeight.isFinite && constraints.maxHeight > 0
                 ? constraints.maxHeight
                 : 380.0;
-        final collapsedSize = (94.0 / availHeight).clamp(0.18, 0.42);
+        final collapsedSize = (92.0 / availHeight).clamp(0.18, 0.42);
         const maxSize = 0.94;
         final midSize = collapsedSize < 0.50 ? 0.58 : null;
 
@@ -382,9 +382,12 @@ class _CctvMapViewState extends State<CctvMapView>
                 ? tokens.offline
                 : tokens.textMuted;
 
-        void toggleSheet() {
+        void toggleSheet(ScrollController scrollController) {
           if (!_sheetController.isAttached) return;
           final isExpanded = _sheetController.size > collapsedSize + 0.08;
+          if (scrollController.hasClients && scrollController.offset > 0) {
+            scrollController.jumpTo(0);
+          }
           _sheetController.animateTo(
             isExpanded ? collapsedSize : (midSize ?? maxSize),
             duration: const Duration(milliseconds: 260),
@@ -430,159 +433,179 @@ class _CctvMapViewState extends State<CctvMapView>
                   child: CustomScrollView(
                     controller: scrollController,
                     slivers: [
-                      // Collapsed-visible Active Camera Header (tap/drag to open list)
-                      SliverToBoxAdapter(
-                        child: GestureDetector(
-                          onTap: toggleSheet,
-                          behavior: HitTestBehavior.opaque,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const SizedBox(height: 8),
-                              Container(
-                                width: 36,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  color: tokens.border,
-                                  borderRadius: BorderRadius.circular(2),
+                      // Pinned Active Camera Header (always visible, tap/drag to toggle)
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _PinnedSheetHeaderDelegate(
+                          height: 88,
+                          backgroundColor: tokens.surfaceElevated,
+                          child: GestureDetector(
+                            onTap: () => toggleSheet(scrollController),
+                            behavior: HitTestBehavior.opaque,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.max,
+                              children: [
+                                const SizedBox(height: 8),
+                                Container(
+                                  width: 36,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: tokens.border,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
                                 ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  16,
-                                  10,
-                                  14,
-                                  12,
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Row(
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      8,
+                                      14,
+                                      8,
+                                    ),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Container(
-                                                width: 8,
-                                                height: 8,
-                                                decoration: BoxDecoration(
-                                                  color: activeDotColor,
-                                                  shape: BoxShape.circle,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 7),
-                                              Expanded(
-                                                child: Text(
-                                                  activeCam?.displayName ??
-                                                      'Pemantauan CCTV',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: tokens.title.copyWith(
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              if (activeDistance != null) ...[
-                                                Container(
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                    horizontal: 6,
-                                                    vertical: 2,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: tokens.primarySoft,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                      5,
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    width: 8,
+                                                    height: 8,
+                                                    decoration: BoxDecoration(
+                                                      color: activeDotColor,
+                                                      shape: BoxShape.circle,
                                                     ),
                                                   ),
-                                                  child: Row(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Icon(
-                                                        Icons.near_me_rounded,
-                                                        size: 10.5,
-                                                        color: tokens.primary,
+                                                  const SizedBox(width: 7),
+                                                  Expanded(
+                                                    child: Text(
+                                                      activeCam?.displayName ??
+                                                          'Pemantauan CCTV',
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style:
+                                                          tokens.title.copyWith(
+                                                        fontSize: 15,
+                                                        fontWeight:
+                                                            FontWeight.w700,
                                                       ),
-                                                      const SizedBox(width: 3),
-                                                      Text(
-                                                        activeDistance,
-                                                        style: TextStyle(
-                                                          fontSize: 11,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color: tokens.primary,
-                                                        ),
-                                                      ),
-                                                    ],
+                                                    ),
                                                   ),
-                                                ),
-                                                const SizedBox(width: 6),
-                                              ],
-                                              Expanded(
-                                                child: Text(
-                                                  (activeCam?.address ?? '')
-                                                          .isNotEmpty
-                                                      ? activeCam!.address
-                                                      : (activeCam
-                                                              ?.displayCategory ??
-                                                          'Tarik ke atas untuk daftar kamera'),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: tokens.caption,
-                                                ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                children: [
+                                                  if (activeDistance !=
+                                                      null) ...[
+                                                    Container(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                        horizontal: 6,
+                                                        vertical: 2,
+                                                      ),
+                                                      decoration: BoxDecoration(
+                                                        color:
+                                                            tokens.primarySoft,
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(5),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize:
+                                                            MainAxisSize.min,
+                                                        children: [
+                                                          Icon(
+                                                            Icons
+                                                                .near_me_rounded,
+                                                            size: 10.5,
+                                                            color:
+                                                                tokens.primary,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 3,
+                                                          ),
+                                                          Text(
+                                                            activeDistance,
+                                                            style: TextStyle(
+                                                              fontSize: 11,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                              color: tokens
+                                                                  .primary,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                  ],
+                                                  Expanded(
+                                                    child: Text(
+                                                      (activeCam?.address ?? '')
+                                                              .isNotEmpty
+                                                          ? activeCam!.address
+                                                          : (activeCam
+                                                                  ?.displayCategory ??
+                                                              'Tarik ke atas untuk daftar kamera'),
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: tokens.caption,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ],
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 5,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: tokens.surfaceSubtle,
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            '${listGroups.length}',
-                                            style: tokens.caption.copyWith(
-                                              fontWeight: FontWeight.w700,
-                                              color: tokens.textPrimary,
-                                            ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 5,
                                           ),
-                                          const SizedBox(width: 2),
-                                          Icon(
-                                            Icons.keyboard_arrow_up_rounded,
-                                            size: 18,
-                                            color: tokens.textMuted,
+                                          decoration: BoxDecoration(
+                                            color: tokens.surfaceSubtle,
+                                            borderRadius:
+                                                BorderRadius.circular(10),
                                           ),
-                                        ],
-                                      ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                '${listGroups.length}',
+                                                style: tokens.caption.copyWith(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: tokens.textPrimary,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 2),
+                                              Icon(
+                                                Icons.keyboard_arrow_up_rounded,
+                                                size: 18,
+                                                color: tokens.textMuted,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                              Divider(height: 1, color: tokens.divider),
-                            ],
+                                Divider(height: 1, color: tokens.divider),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -777,6 +800,10 @@ class _CctvMapViewState extends State<CctvMapView>
                                     );
                                   }
                                   widget.onGroupTap(picked);
+                                  if (scrollController.hasClients &&
+                                      scrollController.offset > 0) {
+                                    scrollController.jumpTo(0);
+                                  }
                                   if (_sheetController.isAttached) {
                                     _sheetController.animateTo(
                                       collapsedSize,
@@ -799,6 +826,43 @@ class _CctvMapViewState extends State<CctvMapView>
         );
       },
     );
+  }
+}
+
+class _PinnedSheetHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double height;
+  final Color backgroundColor;
+  final Widget child;
+
+  const _PinnedSheetHeaderDelegate({
+    required this.height,
+    required this.backgroundColor,
+    required this.child,
+  });
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return ColoredBox(
+      color: backgroundColor,
+      child: SizedBox.expand(child: child),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _PinnedSheetHeaderDelegate oldDelegate) {
+    return oldDelegate.height != height ||
+        oldDelegate.backgroundColor != backgroundColor ||
+        oldDelegate.child != child;
   }
 }
 
