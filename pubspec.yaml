@@ -3,7 +3,7 @@ description: Aplikasi Banjarmasin Pintar refactored with Nylo v7.
 
 publish_to: "none"
 
-version: 3.0.10+51
+version: 3.0.10+52
 
 environment:
   sdk: ^3.10.7

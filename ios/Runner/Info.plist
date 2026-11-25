@@ -76,5 +76,7 @@
 			fitur pendukung lainnya.</string>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>Aplikasi ini membutuhkan akses lokasi untuk menampilkan dan memutar kamera CCTV terdekat dari posisi Anda.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>Aplikasi ini membutuhkan akses lokasi untuk menampilkan dan memutar kamera CCTV terdekat dari posisi Anda.</string>
 	</dict>
 </plist>
