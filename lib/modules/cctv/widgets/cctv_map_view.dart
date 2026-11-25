@@ -34,6 +34,7 @@ class _CctvMapViewState extends State<CctvMapView>
     with SingleTickerProviderStateMixin {
   late bool _showListPanel;
   bool _mapReady = false;
+  bool _didInitialFocus = false;
   int _lastFocusVersion = -1;
 
   late final AnimationController _rippleController;
@@ -64,10 +65,22 @@ class _CctvMapViewState extends State<CctvMapView>
   @override
   void didUpdateWidget(covariant CctvMapView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_mapReady && widget.controller.mapFocusVersion != _lastFocusVersion) {
-      _lastFocusVersion = widget.controller.mapFocusVersion;
+    final ctrl = widget.controller;
+    if (_mapReady && ctrl.mapFocusVersion != _lastFocusVersion) {
+      _lastFocusVersion = ctrl.mapFocusVersion;
+      _didInitialFocus = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _fitFilteredCameras();
+      });
+    } else if (_mapReady &&
+        !_didInitialFocus &&
+        ctrl.selectedKecamatan == null &&
+        ctrl.selectedKelurahan == null &&
+        ctrl.activeCamera != null &&
+        ctrl.activeCamera!.hasValidCoords) {
+      _didInitialFocus = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _recenterMap();
       });
     }
   }
@@ -110,6 +123,22 @@ class _CctvMapViewState extends State<CctvMapView>
         maxZoom: 16,
       ),
     );
+  }
+
+  LatLng _initialCenter() {
+    final active = widget.controller.activeCamera;
+    if (active != null && active.hasValidCoords) {
+      return LatLng(active.latitude, active.longitude);
+    }
+    return const LatLng(CctvController.defaultLat, CctvController.defaultLng);
+  }
+
+  double _initialZoom() {
+    final active = widget.controller.activeCamera;
+    if (active != null && active.hasValidCoords) {
+      return 15.5;
+    }
+    return CctvController.defaultZoom;
   }
 
   void _recenterMap() {
@@ -161,18 +190,19 @@ class _CctvMapViewState extends State<CctvMapView>
               FlutterMap(
                 mapController: widget.mapController,
                 options: MapOptions(
-                  initialCenter: const LatLng(
-                    CctvController.defaultLat,
-                    CctvController.defaultLng,
-                  ),
-                  initialZoom: CctvController.defaultZoom,
+                  initialCenter: _initialCenter(),
+                  initialZoom: _initialZoom(),
                   minZoom: 10,
                   maxZoom: 18,
                   onMapReady: () {
                     _mapReady = true;
                     if (ctrl.selectedKecamatan != null ||
                         ctrl.selectedKelurahan != null) {
+                      _didInitialFocus = true;
                       _fitFilteredCameras();
+                    } else if (ctrl.activeCamera != null &&
+                        ctrl.activeCamera!.hasValidCoords) {
+                      _didInitialFocus = true;
                     }
                   },
                 ),
